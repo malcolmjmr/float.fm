@@ -5,7 +5,7 @@ var logger = require('morgan');
 var session = require('express-session');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
-var mongoose = require('mongoose');
+// var mongoose = require('mongoose');
 var passport = require('passport');
 var flash    = require('connect-flash');
 
@@ -13,10 +13,11 @@ var flash    = require('connect-flash');
 var app = express();
 
 // configurations 
-var configDB = require('./config/database.js');
-mongoose.connect(configDB.url); // connect to our database
+// var configDB = require('./config/database.js');
+// mongoose.connect(configDB.url); // connect to our database
 
-require('./config/passport')(passport); // pass passport for configuration
+require('./config/passport')(app, passport); // attach passport to app
+require('./config/db')(app) // attach db to app
 
 // all environments 
 app.set('port', process.env.PORT || 8080);
@@ -24,19 +25,20 @@ app.set('root', __dirname);
 app.set('views', path.join(__dirname, 'views'));
 app.engine('html', require('ejs').renderFile);
 app.set('view engine', 'html');
+app.set('json spaces', 2);
 //app.use(favicon(__dirname + '/public/favicon.ico'));
 app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(session({secret: 'keyboard cat'}));
+app.use(session({secret: 'fly like a butterfly sting like a bee'}));
 app.use(passport.initialize());
 app.use(passport.session()); // persistent login sessions
 app.use(flash());
 
 // routes 
-require(__dirname + '/routes').createRoutes(app, passport);
+require(__dirname + '/routes').createRoutes(app);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

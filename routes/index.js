@@ -2,7 +2,10 @@ var db = require('../models/dbSchema');
 var path = require('path');
 var fs = require('fs');
 
-exports.createRoutes = function(app, passport) {
+exports.createRoutes = function(app_ref) {
+  app = app_ref;
+  var passport = app.passport;
+  
   // sign up and login 
   app.get('/login', loginPage);
   app.post('/login', localLogin(passport));
@@ -47,8 +50,14 @@ function isLoggedIn(req, res, next) {
 }
 
 function sendUser(req, res) {
-  db.User
-  res.json(user)
+  var id = req.params.id
+  db.user.find({_id: id}, function(err, user) {
+    if (err) throw err;
+
+    user 
+    res.json(user)
+  })
+  
 }
 // functions for getting songs
 function sendSong(req, res){
