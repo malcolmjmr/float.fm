@@ -8,6 +8,7 @@ var userSchema = mongoose.Schema({
     last_name        : String,
     age              : String,
     groups           : Array,
+    stations         : Array,
     txn_history      : Array, 
     local            : {
         email        : String,
@@ -45,13 +46,37 @@ userSchema.methods.validPassword = function(password) {
     return bcrypt.compareSync(password, this.local.password);
 };
 
-var musicSchema = mongoose.Schema({
+var songSchema = mongoose.Schema({
   title   : String,
-  artist    : String,
+  artist  : String,
   album   : String,
   genre   : String,
   location  : String,
-  cover   : String
+  cover   : String,
+  upvotes : String,
+  downvotes: String,
+  stations : String
+});
+
+var groupSchema = mongoose.Schema({
+  createdBy   : String,
+  createdOn   : String,
+  admins      : Array,
+  members     : Array,
+  following   : Array,
+  stations    : Array,
+  txn_history : Array
+});
+
+var stationSchema = mongoose.Schema({
+  createdBy     : String,
+  createdOn     : String,
+  admins        : Array,
+  members       : Array,
+  following     : Array,
+  songs         : Array,
+  acceptedSongs : Array,
+  pendingSongs  : Array
 });
 
 var librarySchema = mongoose.Schema({
@@ -60,7 +85,8 @@ var librarySchema = mongoose.Schema({
 
 // expose models to app
 module.exports = {
-  user    : mongoose.model('User', userSchema),
-  song    : mongoose.model('Song', musicSchema),
-  userLibrary : mongoose.model('UserLibary', librarySchema)
+  User    : mongoose.model('User', userSchema),
+  Group   : mongoose.model('Group', groupSchema),
+  Song    : mongoose.model('Song', songSchema),
+  Station : mongoose.model('Station', stationSchema)
 };

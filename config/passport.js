@@ -1,12 +1,11 @@
 // load all the things we need
-var passport = require('passport');
 var LocalStrategy   = require('passport-local').Strategy;
 var FacebookStrategy = require('passport-facebook').Strategy;
 var TwitterStrategy = require('passport-twitter').Strategy;
 var GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
 
 // load up the user model
-var User            = require('../models/dbSchema').user;
+var User            = require('../models/dbSchema').User;
 
 // load the auth variables
 var configAuth = require('./auth');
@@ -73,7 +72,7 @@ module.exports = function(app, passport) {
                 newUser.save(function(err) {
                     if (err)
                         throw err;
-                        
+                    req.session.user = newUser;    
                     return done(null, newUser);
                 });
             }

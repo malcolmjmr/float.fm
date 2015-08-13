@@ -1,16 +1,18 @@
 var db = require('../models/dbSchema');
+var passport = require('passport');
 var path = require('path');
 var fs = require('fs');
 
+app = null;
+
 exports.createRoutes = function(app_ref) {
   app = app_ref;
-  var passport = app.passport;
-  
-  // sign up and login 
-  app.get('/login', loginPage);
-  app.post('/login', localLogin(passport));
-  app.get('/signup', signupPage);
-  app.post('/signup', localSignup(passport));
+
+  // sign up and login requests
+  app.get('/welcome', welcomePage) 
+  app.post('/login', localLogin);
+  app.post('/signup', localSignup);
+  app.post('/db', getItemFromDB)
   app.get('/auth/facebook', passport.authenticate('facebook', { scope : 'email' }));
   app.get('/auth/facebook/callback', fbCallback(passport));
   app.get('/auth/google', passport.authenticate('google', { scope : ['profile', 'email'] }));
@@ -20,6 +22,18 @@ exports.createRoutes = function(app_ref) {
   app.get('/logout', logout);
   app.get('/', isLoggedIn, sendUser);
   app.get('/sendsong', sendSong);
+  // app data 
+  //app.io.on('save_song', saveSong);
+  //app.io.on('update_song', updateSong);
+  //app.io.on('update_user', updateUser);
+  //app.io.on('send_user', sendUser);
+  //app.io.on('create_group', createGroup);
+  //app.io.on('send_group', sendGroup);
+  //app.io.on('update_group', updateGroup);
+  //app.io.on('create_station', createStation);
+  //app.io.on('send_station', sendStation);
+  //app.io.on('update_station', updateStation);
+
   //app.get('/account', accountsPage);
   //app.get('/songs/:user', getSongs);
   //app.get('/premiers', premiersPage);
@@ -27,13 +41,8 @@ exports.createRoutes = function(app_ref) {
 }
 // web pages =============================
 
-
-function loginPage(req, res) {
-  res.render('pages/login.ejs', { message: req.flash('loginMessage') });
-}
-
-function signupPage(req, res) {
-  res.render('pages/signup.ejs', { message: req.flash('loginMessage') });
+function welcomePage(req, res) {
+  res.render('index.html');
 }
 
 
@@ -43,19 +52,17 @@ function logout(req, res) {
 }
 
 function isLoggedIn(req, res, next) {
+  console.log(req.session);
   if (req.isAuthenticated())
     return next();
-
   res.redirect('/welcome');
 }
 
 function sendUser(req, res) {
-  var id = req.params.id
-  db.user.find({_id: id}, function(err, user) {
+  db.User.find({_id: req.id}, function(err, user) {
     if (err) throw err;
-
-    user 
-    res.json(user)
+    console.log(user + err);
+    res.json(JSON.stringify(user));
   })
   
 }
@@ -72,20 +79,37 @@ function sendSong(req, res){
   }
   });
 }
+
+// app.io requests 
+function saveSong(req, res) {
+  song = new db.song;
+}
+
+// Look up database entries
+function getItemFromDB(req, res) {
+
+}
 // passport authentication =================
 
-function localLogin(passport) {
-  return passport.authenticate('local-login', {
-      successRedirect : '/', 
-      failureRedirect : '/login', 
-      failureFlash : true 
-  });
+function localLogin(req, res, next) {
+  passport.authenticate('local-login', function(err, user, info) {
+    if (err) { return next(err); }
+    if (!user) { return res.redirect('/welcome'); }
+    req.logIn(user, function(err) {
+      if (err) { return next(err); }
+      var response = {
+        error: err,
+        data: JSON.stringify(user)
+      }
+      return res.json(response);
+    });
+  })(req, res, next);
 }
 
 function localSignup(passport) {
   return passport.authenticate('local-signup', {
       successRedirect : '/', 
-      failureRedirect : '/signup', 
+      failureRedirect : '/welcome', 
       failureFlash : true 
   });
 }
@@ -93,7 +117,7 @@ function localSignup(passport) {
 function fbCallback(passport) {
   return passport.authenticate('facebook', {
       successRedirect : '/', 
-      failureRedirect : '/signup', 
+      failureRedirect : '/welcome', 
       failureFlash : true 
   });
 }
@@ -101,7 +125,7 @@ function fbCallback(passport) {
 function googleCallback(passport) {
   return passport.authenticate('google', {
       successRedirect : '/', 
-      failureRedirect : '/signup', 
+      failureRedirect : '/welcome', 
       failureFlash : true 
   });
 }
@@ -109,7 +133,7 @@ function googleCallback(passport) {
 function twitterCallback(passport) {
   return passport.authenticate('twitter', {
       successRedirect : '/', 
-      failureRedirect : '/signup', 
+      failureRedirect : '/welcome', 
       failureFlash : true 
   });
 }

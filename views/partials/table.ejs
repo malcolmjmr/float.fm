@@ -1,0 +1,27 @@
+<h2 class="sub-header">My Music</h2>
+<div><input type="range" id="trackPos" value="0"></div>
+<div class="table-responsive">
+	<table class="table table-hover">
+	  <thead>
+		<tr>
+		  <th></th>
+		  <th>Name</th>
+		  <th>Artist</th>
+		  <th>Album</th>
+		</tr>
+	  </thead>
+	  <tbody> 
+	  <% album.forEach(function(song) { %>
+		<tr>
+		  <td width ="100px"> 
+		    <div onclick="playSong('<%=song._id%>');" style="width:100%"class="btn btn-primary btn-sm active" role="button">Play</div> 
+		    <div onclick="addToQue('<%=song._id%>');"class="btn btn-primary btn-sm active" role="button">Add to Que</div>
+		  </td>
+		  <td><%= song.title %></td>
+		  <td><%= song.artist %></td>
+		  <td><%= song.album %></td>
+		</tr>
+	  <% }); %>
+	  </tbody>
+	</table>
+  </div>
