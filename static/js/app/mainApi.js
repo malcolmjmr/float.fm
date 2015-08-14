@@ -1,5 +1,12 @@
+var app = {
+  initiate: function() {
+    socket.emit('get_library');
+    socket.emit('get_groups');
+    socket.emit('get_stations');
+  }
+}
 
-var db = {
+app.db = {
 
   // add entry to database 
   addItem: function(collection, item) {
@@ -30,6 +37,7 @@ var db = {
           console.log(res.error);
         } else {
           console.log(res.data);
+          app.user = res.data;
         }
       });
     },
@@ -57,7 +65,7 @@ var db = {
         if (res.error) {
           console.log(res.error);
         } else {
-          console.log(res.data);
+          app.user = res.data;
         }
       });
     },
@@ -74,16 +82,19 @@ var db = {
 
   // log out
   logout: function(session) {
-
+    $.post('/logout', function() {
+      delete app.user
+      delete app.player
+    });
   },
 
 
   song: {
     add: function(song) {
-
+      socket.emit('song:add', song)
     },
     update: function(song) {
-
+      socket.emit('song:update', song)
     }
   },
 

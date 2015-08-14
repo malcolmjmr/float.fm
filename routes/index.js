@@ -11,21 +11,27 @@ exports.createRoutes = function(app_ref) {
   // sign up and login requests
   app.get('/welcome', welcomePage) 
   app.post('/login', localLogin);
+  app.post('/login', localLogin);
   app.post('/signup', localSignup);
-  app.post('/db', getItemFromDB)
+  app.post('/db', getItemFromDB);
   app.get('/auth/facebook', passport.authenticate('facebook', { scope : 'email' }));
   app.get('/auth/facebook/callback', fbCallback(passport));
   app.get('/auth/google', passport.authenticate('google', { scope : ['profile', 'email'] }));
   app.get('/auth/google/callback', googleCallback(passport));
   app.get('/auth/twitter', passport.authenticate('twitter', { scope : 'email' }));
   app.get('/auth/twitter/callback', twitterCallback(passport));
-  app.get('/logout', logout);
-  app.get('/', isLoggedIn, sendUser);
+  app.post('/logout', logout);
+  app.get('/', isLoggedIn, mainPage);
   app.get('/sendsong', sendSong);
   // app data 
-  //app.io.on('save_song', saveSong);
-  //app.io.on('update_song', updateSong);
-  //app.io.on('update_user', updateUser);
+  app.io.route('ready', function(req) {
+    console.log(req.handshake.user);
+  });
+  app.io.route('song', {
+    add: addSong,
+    update: updateSong
+  });
+  app.io.route('update_user', updateUser);
   //app.io.on('send_user', sendUser);
   //app.io.on('create_group', createGroup);
   //app.io.on('send_group', sendGroup);
@@ -33,7 +39,6 @@ exports.createRoutes = function(app_ref) {
   //app.io.on('create_station', createStation);
   //app.io.on('send_station', sendStation);
   //app.io.on('update_station', updateStation);
-
   //app.get('/account', accountsPage);
   //app.get('/songs/:user', getSongs);
   //app.get('/premiers', premiersPage);
@@ -41,14 +46,14 @@ exports.createRoutes = function(app_ref) {
 }
 // web pages =============================
 
+
 function welcomePage(req, res) {
+  req.session.loginDate = new Date().toString();
   res.render('index.html');
 }
 
-
-function logout(req, res) {
-  req.logout();
-  res.redirect('/');
+function mainPage(req, res) {
+  res.render('index.html');
 }
 
 function isLoggedIn(req, res, next) {
@@ -56,6 +61,27 @@ function isLoggedIn(req, res, next) {
   if (req.isAuthenticated())
     return next();
   res.redirect('/welcome');
+}
+
+function logout(req, res) {
+  req.logout();
+  res.redirect('/welcome');
+}
+
+function addSong(req) {
+  var response = {
+    data: 'added ' + req.data
+  }
+  console.log(req.session);
+  req.io.emit('song_added', response);
+}
+
+function updateSong(song) {
+
+}
+
+function updateUser(user) {
+  console.log(req.session);
 }
 
 function sendUser(req, res) {
@@ -92,25 +118,32 @@ function getItemFromDB(req, res) {
 // passport authentication =================
 
 function localLogin(req, res, next) {
+  var response = {};
   passport.authenticate('local-login', function(err, user, info) {
-    if (err) { return next(err); }
-    if (!user) { return res.redirect('/welcome'); }
-    req.logIn(user, function(err) {
-      if (err) { return next(err); }
-      var response = {
-        error: err,
-        data: JSON.stringify(user)
-      }
-      return res.json(response);
-    });
+    if (err) { 
+      throw err;
+    } else if (!user) { 
+      response.error = "User does not exist";
+    } else {
+      req.logIn(user, function(err) {
+        if (err) { throw err; }
+        response.data = user
+      });
+    }
+    res.json(response);
   })(req, res, next);
 }
 
-function localSignup(passport) {
-  return passport.authenticate('local-signup', {
-      successRedirect : '/', 
-      failureRedirect : '/welcome', 
-      failureFlash : true 
+function localSignup(req, res, next) {
+  var response = {};
+  passport.authenticate('local-signup', function(err, user, info) {
+    if (err) { throw err; }
+    if (user) { 
+      response.data = "User already exists"; 
+    } else {
+      response.data = "Registration complete";
+    }
+    res.json(response);
   });
 }
 
@@ -137,3 +170,5 @@ function twitterCallback(passport) {
       failureFlash : true 
   });
 }
+
+

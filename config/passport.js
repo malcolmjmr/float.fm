@@ -303,7 +303,5 @@ module.exports = function(app, passport) {
         });
 
     }));
-    
-    app.passport = passport;
 
 };

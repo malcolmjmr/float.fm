@@ -1,6 +1,3 @@
 module.exports = {
-  'url' : 'mongodb://localhost/float',
-  'addTo': function(app) {
-    app.db = require('../models/dbSchema');
-  }  
+  'url' : 'mongodb://localhost:27017/float'
 };
