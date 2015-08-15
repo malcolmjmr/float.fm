@@ -1,31 +1,24 @@
-var passportSocketIo = require("passport.socketio");
-var session = require('express-session');
-var MongoStore = require('connect-mongo')(session);
-var mongoose = require('mongoose')
+var path = require('path');
+var root = path.join(__dirname, '..');
+var db = require('./../models/dbSchema.js');
 
-module.exports = function(app, sessionStore) {
-  var oldAuth = app.io.get('authorization');
-  app.io.set(passportSocketIo.authorize({
-    cookieparser:   require('cookie-parser'),
-    key:            'express.sid',
-    secret:         'fly like a butterfly sting like a bee',
-    store:          sessionStore,
-    success:        onAuthorizeSuccess,
-    fail:           onAuthorizeFail
-  }));
+module.exports = function(app) {
 
-  function onAuthorizeSuccess(data, accept){
-    console.log('successful connection to socket.io');
+  app.io.use(function (socket, next) {
+    var cookie = socket.headers.cookie;
+    var sidPrefix = 'express.sid=s%3A';
+    var sidPosition =  cookie.indexOf(sidPrefix);
+    var sidRaw = cookie.substr(sidPosition + sidPrefix.length, cookie.length);
+    var sidEnd = sidRaw.indexOf('.');
+    var sid = sidRaw.substr(0, sidEnd);
 
-    // The accept-callback still allows us to decide whether to
-    // accept the connection or not.
-    accept(null, true);
-  }
+    db.Session.findOne({_id: sid}, function (err, doc) {
+      var session = JSON.parse(doc.session);
+      if (session.passport.user) {
+        next();
+      }
+    })
+    next(new Error('not authorized'));
+  });
 
-  function onAuthorizeFail(data, message, error, accept){
-    if(error)
-      throw new Error(message);
-    console.log('failed connection to socket.io:', message);
-    accept(null, false);
-  }
 };

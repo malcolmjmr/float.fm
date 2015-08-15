@@ -16,6 +16,12 @@ module.exports = {
         'clientID'      : '969957785076-7mk6atqdgspb86eek32791psg12ogmn4.apps.googleusercontent.com',
         'clientSecret'  : '32mDLJ_Jnha057W4i7oPsdbQ',
         'callbackURL'   : 'http://localhost:8080/auth/google/callback'
+    },
+
+    'soundcloudAuth' : {
+        'clientID'      : 'ca37e05cd9e2f458b279e5dc5b050b8a',
+        'clientSecret'  : '9b73e79ab3ada2a95eab10cab1ab58ba',
+        'callbackURL'   : 'http://localhost:8080/auth/soundcloud/callback'
     }
 
 };

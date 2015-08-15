@@ -35,7 +35,7 @@ var sessionStore = new Yams(function (callback) {
 
 require('./config/passport')(app, passport); // attach passport to app
 require('./config/db')(app); // attach db to app
-require('./config/io')(app, sessionStore); // set up socket.io
+require('./config/io')(app); // set up socket.io
 
 // all environments 
 app.set('port', port);
@@ -57,7 +57,7 @@ app.use(session({
   store : sessionStore,
   saveUninitialized: false,
   resave: false,
-  maxAge: 3600000
+  cookie: {maxAge: 3600000} 
 }));
 app.use(passport.initialize());
 app.use(passport.session()); // persistent login sessions

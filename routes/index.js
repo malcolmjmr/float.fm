@@ -49,6 +49,7 @@ exports.createRoutes = function(app_ref) {
 
 function welcomePage(req, res) {
   req.session.loginDate = new Date().toString();
+  req.session.booty = 'idk';
   res.render('index.html');
 }
 

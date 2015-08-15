@@ -53,22 +53,27 @@ var songSchema = mongoose.Schema({
   genre   : String,
   location  : String,
   cover   : String,
-  upvotes : String,
-  downvotes: String,
-  stations : String
+  upvotes : Array,
+  downvotes: Array,
+  stations : Array,
+  play_count: Array,
+  played_by: Array,
 });
 
 var groupSchema = mongoose.Schema({
+  name        : String,
   createdBy   : String,
   createdOn   : String,
   admins      : Array,
   members     : Array,
   following   : Array,
   stations    : Array,
+  hashtags    : Array,
   txn_history : Array
 });
 
 var stationSchema = mongoose.Schema({
+  name          : String,
   createdBy     : String,
   createdOn     : String,
   admins        : Array,
@@ -79,8 +84,10 @@ var stationSchema = mongoose.Schema({
   pendingSongs  : Array
 });
 
-var librarySchema = mongoose.Schema({
-  db_id: String
+var sessionSchema = mongoose.Schema({
+  _id : String,
+  session : Object,
+  expires : Date 
 });
 
 // expose models to app
@@ -88,5 +95,6 @@ module.exports = {
   User    : mongoose.model('User', userSchema),
   Group   : mongoose.model('Group', groupSchema),
   Song    : mongoose.model('Song', songSchema),
-  Station : mongoose.model('Station', stationSchema)
+  Station : mongoose.model('Station', stationSchema),
+  Session : mongoose.model('Session', sessionSchema)
 };
