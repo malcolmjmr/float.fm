@@ -1,7 +1,7 @@
 var db = require('../models/dbSchema');
 var passport = require('passport');
 var path = require('path');
-var fs = require('fs');
+var f = require('./functions');
 
 app = null;
 
@@ -10,7 +10,6 @@ exports.createRoutes = function(app_ref) {
 
   // sign up and login requests
   app.get('/welcome', welcomePage) 
-  app.post('/login', localLogin);
   app.post('/login', localLogin);
   app.post('/signup', localSignup);
   app.post('/db', getItemFromDB);
@@ -23,15 +22,60 @@ exports.createRoutes = function(app_ref) {
   app.post('/logout', logout);
   app.get('/', isLoggedIn, mainPage);
   app.get('/sendsong', sendSong);
-  // app data 
-  app.io.route('ready', function(req) {
-    console.log(req.handshake.user);
+  // app routes 
+  app.io.route('ready', f.ready);
+  app.io.route('create', f.create);
+  //app.io.route('update', f.update);
+  //app.io.route('delete', f.delete);
+  //app.io.route('send', f.send);
+
+  /*app.io.route('song', {
+    create: f.song.create
+    update: f.song.update
   });
-  app.io.route('song', {
-    add: addSong,
-    update: updateSong
+  app.io.route('group', {
+    create: f.group.create,
+    update: f.group.update,
+    delete: f.group.delete,
+    follow: f.group.follow,
+    add_item: f.station.addItem,
+    remove_item: f.station.removeItem
   });
-  app.io.route('update_user', updateUser);
+  app.io.route('station', {
+    create: f.station.create,
+    update: f.station.update,
+    delete: f.station.delete,
+    follow: f.station.follow,
+    add_item: f.station.addItem,
+    remove_item: f.station.removeItem
+  });
+  app.io.route('playlist', {
+    create: f.playlist.create,
+    update: f.playlist.update,
+    delete: f.playlist.delete,
+    follow: f.playlist.follow,
+    add_item: f.playlist.addItem
+    remove_item: f.playlist.removeItem
+  });
+  app.io.route('user', {
+    create: createUser,
+    update: updateUser,
+    send_user: sendUser,
+    send_library: sendLibrary,
+    send_groups: sendGroups,
+    send_stations: sendSations,
+    library: {
+      add_item: addToLibrary,
+      remove_item: removeFromeLibrary
+    }
+  });
+  app.io.route('vote', {
+    up: upVote,
+    down: downVote
+  });
+
+  */
+
   //app.io.on('send_user', sendUser);
   //app.io.on('create_group', createGroup);
   //app.io.on('send_group', sendGroup);
@@ -49,7 +93,6 @@ exports.createRoutes = function(app_ref) {
 
 function welcomePage(req, res) {
   req.session.loginDate = new Date().toString();
-  req.session.booty = 'idk';
   res.render('index.html');
 }
 
@@ -58,7 +101,6 @@ function mainPage(req, res) {
 }
 
 function isLoggedIn(req, res, next) {
-  console.log(req.session);
   if (req.isAuthenticated())
     return next();
   res.redirect('/welcome');
@@ -128,7 +170,7 @@ function localLogin(req, res, next) {
     } else {
       req.logIn(user, function(err) {
         if (err) { throw err; }
-        response.data = user
+        response.data = user;
       });
     }
     res.json(response);
@@ -145,7 +187,7 @@ function localSignup(req, res, next) {
       response.data = "Registration complete";
     }
     res.json(response);
-  });
+  })(req, res, next);
 }
 
 function fbCallback(passport) {

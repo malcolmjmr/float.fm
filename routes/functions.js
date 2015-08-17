@@ -1,105 +1,78 @@
-var app = {
-  initiate: function() {
-    socket.emit('get_user');
-    socket.emit('get_library:');
-    socket.emit('get_groups');
-    socket.emit('get_stations');
-  }
-}
 
-app.db = {
+var db = require('../models/dbSchema');
 
-  create: function(data) {
-    socket.emit('create', data);
+module.exports = {
+  ready: function(req) {
+    console.log(req.session);
+    req.session.user = req.data;
+
   },
+  create: function(req) { 
+    if (isValidRequest(req)) {
+      var collection = req.data.collection;
+      var newEntry = new db[collection](req.data.item);
+      newEntry.save(function(err, entry) {
+        req.io.emit('created_'+ collection, entry);
+        db.user.findOne({_id: req.data.userId},  function(err, user) {
+          user[collection+'s'].push(entry._id);
+          var txn = {
+            operation: 'create_'+collection,
+            collection: collection
+            itemId: entry._id
+            createdOn: new Date(Date.now()),
+          };
+          user.txnHistory.push(txn);
+          user.save(function(err, update) {
+            if (!err) {
+              req.io.emit('updated_user_'+collection+'s', update);
+            }
+          });
+        });
+      });
+    } 
+  },
+  update: function(req) {
+    if (isValidRequest(req)) {
+      
+    }
+  },
+  delete: function(req) {
+
+  },
+
 
   // add entry to database 
   addItem: function(collection, item) {
-
+    var entry = new db[collection](item);
+    entry.save(function(err) {
+      if (err) { throw err; }
+    });
   },
 
   // get entry from database
   getItem: function(collection, item) {
-
+    db[collection].findOne({_id: item._id}, function(err, entry) {
+      console.log(entry);
+    });
   },
 
   // update entry in database
   updateItem: function(collection, item) {
-
+    db[collection].update({_id: item._id}, function(err) {
+      if (err) { throw err; }
+    })
   },
-
-  // log in 
-  login: {
-    local: function(email, password) {
-
-      var params = {
-        email: email,
-        password: password
-      };
-
-      $.post("/login", params, function(res) {
-        if (res.error) {
-          console.log(res.error);
-        } else {
-          console.log(res.data);
-          app.user = res.data;
-        }
-      });
-    },
-    google: function() {
-
-    },
-    facebook: function() {
-
-    },
-    twitter: function() {
-
-    }
-  },
-
-
-  // sign up
-  signup: {
-    local: function(email, password) {
-      var params = {
-        email: email,
-        password: password
-      };
-
-      $.post("/signup", params, function(res) {
-        if (res.error) {
-          console.log(res.error);
-        } else {
-          app.user = res.data;
-          socket.emit('ready', res.data);
-        }
-      });
-    },
-    google: function() {
-
-    },
-    facebook: function() {
-
-    },
-    twitter: function() {
-
-    } 
-  },
-
-  // log out
-  logout: function(session) {
-    $.post('/logout', function() {
-      delete app.user
-      delete app.player
-    });
-  },
-
 
   song: {
-    create: function(song) {
-      socket.emit('song:create', song)
+    create: function(req) {
+      var song = new db.song(req.data.song);
+      song.save(function(err) {
+        if (err) { throw err; } 
+
+
+      })
     },
-    update: function(song) {
+    update: function(req) {
       socket.emit('song:update', song)
     }
   },
@@ -129,7 +102,7 @@ app.db = {
   }
 };
 
-app.functions = {
+var functions = {
 
   song: function(song) {
     var data = {
@@ -210,9 +183,6 @@ app.functions = {
       },
       downVote: function() {
         socket.emit('vote:down', data);
-      },
-      follow: function() {
-        socket.emit('user:follow', data);
       }
     }
   },
@@ -224,53 +194,53 @@ app.functions = {
 
     return {
       create: function() {
-        socket.emit('station:create', data);
+
       },
       delete: function() {
-        socket.emit('station:delete', data);
-      },
-      update: function() {
-        socket.emit('station:update', data);
+
       },
       listen: function() {
 
       },
       follow: function() {
-        socket.emit('group:follow', data);
+
       },
       join: function() {
-        socket.emit('group:join', data);
+
       },
       message: function(msg) {
 
       }  
     } 
   },
-  group: function(group) {
-    var data = {
-      userId : app.user._id,
-      group : group
-    };
+  group: {
+    create: function(name) {
 
-    return {
-      create: function() {
-        socket.emit('group:create', data);
-      },
-      update: function() {
-        socket.emit('group:update', data);
-      },
-      delete: function() {
-        socket.emit('group:delete', data);
-      },
-      follow: function() {
-        socket.emit('group:follow', data);
-      },
-      join: function() {
-        socket.emit('group:join', data);
-      },
-      message: function(msg) {
+    },
+    delete: function(id) {
 
-      }
-    }   
+    },
+    follow: function(id) {
+
+    },
+    join: function(id) {
+
+    },
+    message: function(id, msg) {
+
+    }
   }
+}
+
+var isValidRequest = function(req) {
+  var session = JSON.parse(req.session.session)
+    var isUser = false;
+    var correctData = false;
+    if (req.data.userId && req.data.collection && req.data.item) {
+      isUser = (session.passport.user == req.data.userId);
+      for (collection in db) {
+        if (collection === req.data.collection) { correctData = true; }
+      }
+    }
+    return (isUser && correctData);
 }

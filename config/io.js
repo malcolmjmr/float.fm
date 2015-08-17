@@ -1,5 +1,3 @@
-var path = require('path');
-var root = path.join(__dirname, '..');
 var db = require('./../models/dbSchema.js');
 
 module.exports = function(app) {
@@ -12,13 +10,19 @@ module.exports = function(app) {
     var sidEnd = sidRaw.indexOf('.');
     var sid = sidRaw.substr(0, sidEnd);
 
-    db.Session.findOne({_id: sid}, function (err, doc) {
-      var session = JSON.parse(doc.session);
-      if (session.passport.user) {
-        next();
-      }
+    db.session.findOne({_id: sid}, function (err, doc) {
+      if (!err) {
+        var session = JSON.parse(doc.session);
+        if (session.passport.user) {
+          socket.secure = true;
+          if (socket.session === undefined) {
+            socket.session = doc;
+          }
+          next();
+        }
+      }    
     })
-    next(new Error('not authorized'));
+
   });
 
 };

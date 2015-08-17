@@ -1,105 +1,55 @@
-var app = {
-  initiate: function() {
-    socket.emit('get_user');
-    socket.emit('get_library:');
-    socket.emit('get_groups');
-    socket.emit('get_stations');
-  }
-}
 
-app.db = {
+var db = require('../models/dbSchema');
 
-  create: function(data) {
-    socket.emit('create', data);
+module.exports = {
+
+  create: function(req) {
+    var collection = req.data.collection
+    var entry = new db[collection](req.data.item);
+    entry.save(function(err) {
+      req.io.emit('created_'+collection);
+    })
   },
+  update: function(req) {
+
+  },
+  delete: function(req) {
+
+  },
+
 
   // add entry to database 
   addItem: function(collection, item) {
-
+    var entry = new db[collection](item);
+    entry.save(function(err) {
+      if (err) { throw err; }
+    });
   },
 
   // get entry from database
   getItem: function(collection, item) {
-
+    db[collection].findOne({_id: item._id}, function(err, entry) {
+      console.log(entry);
+    });
   },
 
   // update entry in database
   updateItem: function(collection, item) {
-
+    db[collection].update({_id: item._id}, function(err) {
+      if (err) { throw err; }
+    })
   },
-
-  // log in 
-  login: {
-    local: function(email, password) {
-
-      var params = {
-        email: email,
-        password: password
-      };
-
-      $.post("/login", params, function(res) {
-        if (res.error) {
-          console.log(res.error);
-        } else {
-          console.log(res.data);
-          app.user = res.data;
-        }
-      });
-    },
-    google: function() {
-
-    },
-    facebook: function() {
-
-    },
-    twitter: function() {
-
-    }
-  },
-
-
-  // sign up
-  signup: {
-    local: function(email, password) {
-      var params = {
-        email: email,
-        password: password
-      };
-
-      $.post("/signup", params, function(res) {
-        if (res.error) {
-          console.log(res.error);
-        } else {
-          app.user = res.data;
-          socket.emit('ready', res.data);
-        }
-      });
-    },
-    google: function() {
-
-    },
-    facebook: function() {
-
-    },
-    twitter: function() {
-
-    } 
-  },
-
-  // log out
-  logout: function(session) {
-    $.post('/logout', function() {
-      delete app.user
-      delete app.player
-    });
-  },
-
 
   song: {
-    create: function(song) {
-      socket.emit('song:create', song)
+    create: function(req) {
+      var song = new db.song(req.data.song);
+      song.save(function(err) {
+        if (err) { throw err; } 
+
+
+      })
     },
-    update: function(song) {
+    update: function(req) {
       socket.emit('song:update', song)
     }
   },
@@ -129,7 +79,7 @@ app.db = {
   }
 };
 
-app.functions = {
+var functions = {
 
   song: function(song) {
     var data = {
@@ -210,9 +160,6 @@ app.functions = {
       },
       downVote: function() {
         socket.emit('vote:down', data);
-      },
-      follow: function() {
-        socket.emit('user:follow', data);
       }
     }
   },
@@ -224,53 +171,40 @@ app.functions = {
 
     return {
       create: function() {
-        socket.emit('station:create', data);
+
       },
       delete: function() {
-        socket.emit('station:delete', data);
-      },
-      update: function() {
-        socket.emit('station:update', data);
+
       },
       listen: function() {
 
       },
       follow: function() {
-        socket.emit('group:follow', data);
+
       },
       join: function() {
-        socket.emit('group:join', data);
+
       },
       message: function(msg) {
 
       }  
     } 
   },
-  group: function(group) {
-    var data = {
-      userId : app.user._id,
-      group : group
-    };
+  group: {
+    create: function(name) {
 
-    return {
-      create: function() {
-        socket.emit('group:create', data);
-      },
-      update: function() {
-        socket.emit('group:update', data);
-      },
-      delete: function() {
-        socket.emit('group:delete', data);
-      },
-      follow: function() {
-        socket.emit('group:follow', data);
-      },
-      join: function() {
-        socket.emit('group:join', data);
-      },
-      message: function(msg) {
+    },
+    delete: function(id) {
 
-      }
-    }   
+    },
+    follow: function(id) {
+
+    },
+    join: function(id) {
+
+    },
+    message: function(id, msg) {
+
+    }
   }
 }

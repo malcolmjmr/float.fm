@@ -4,12 +4,14 @@ var bcrypt   = require('bcrypt-nodejs');
 
 // define the schema for our user model
 var userSchema = mongoose.Schema({
-    first_name       : String,
-    last_name        : String,
+    firstName       : String,
+    lastName        : String,
     age              : String,
     groups           : Array,
+    songs            : Array,
+    playlists        : Array,
     stations         : Array,
-    txn_history      : Array, 
+    txnHistory      : Array, 
     local            : {
         email        : String,
         password     : String,
@@ -53,11 +55,12 @@ var songSchema = mongoose.Schema({
   genre   : String,
   location  : String,
   cover   : String,
+  hashtags: Array,
   upvotes : Array,
   downvotes: Array,
   stations : Array,
-  play_count: Array,
-  played_by: Array,
+  playCount: Array,
+  playedBy: Array,
 });
 
 var groupSchema = mongoose.Schema({
@@ -67,9 +70,12 @@ var groupSchema = mongoose.Schema({
   admins      : Array,
   members     : Array,
   following   : Array,
+  playlists   : Array,
   stations    : Array,
   hashtags    : Array,
-  txn_history : Array
+  txnHistory  : Array,
+  upvotes     : Array,
+  downvotes   : Array
 });
 
 var stationSchema = mongoose.Schema({
@@ -80,8 +86,9 @@ var stationSchema = mongoose.Schema({
   members       : Array,
   following     : Array,
   songs         : Array,
-  acceptedSongs : Array,
-  pendingSongs  : Array
+  hashtags      : Array,
+  upvotes       : Array,
+  downvotes     : Array,
 });
 
 var sessionSchema = mongoose.Schema({
@@ -92,9 +99,9 @@ var sessionSchema = mongoose.Schema({
 
 // expose models to app
 module.exports = {
-  User    : mongoose.model('User', userSchema),
-  Group   : mongoose.model('Group', groupSchema),
-  Song    : mongoose.model('Song', songSchema),
-  Station : mongoose.model('Station', stationSchema),
-  Session : mongoose.model('Session', sessionSchema)
+  user    : mongoose.model('user', userSchema),
+  group   : mongoose.model('group', groupSchema),
+  song    : mongoose.model('song', songSchema),
+  station : mongoose.model('station', stationSchema),
+  session : mongoose.model('session', sessionSchema)
 };

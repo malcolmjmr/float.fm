@@ -35,5 +35,11 @@ socket.on('song_updated', function(res) {
   }
 });
 
+socket.on('created_song', function(res) {
+  console.log(res);
+});
 
+socket.on('updated_user_songs', function(res) {
+  console.log(res);
+});
 

@@ -7,6 +7,7 @@ var favicon = require('serve-favicon');
 var logger = require('morgan');
 var session = require('express-session');
 var Yams = require('yams')(session);
+var ios = require('express-socket.io-session')(session, {autoSave: true});
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var mongoose = require('mongoose');
@@ -61,6 +62,7 @@ app.use(session({
 }));
 app.use(passport.initialize());
 app.use(passport.session()); // persistent login sessions
+//app.io.use(ios(session));
 app.use(flash());
 
 
