@@ -1,9 +1,6 @@
 var app = {
-  initiate: function() {
-    socket.emit('get_user');
-    socket.emit('get_library:');
-    socket.emit('get_groups');
-    socket.emit('get_stations');
+  initiate: function(email, password) {
+    app.db.login.local(email, password); 
   }
 }
 
@@ -12,6 +9,12 @@ app.db = {
   create: function(data) {
     socket.emit('create', data);
   },
+  update: function(data) {
+    socket.emit('update', data);
+  },
+  delete: function(data) {
+    socket.emit('delete', data);
+  },
 
   // add entry to database 
   addItem: function(collection, item) {
@@ -19,14 +22,13 @@ app.db = {
   },
 
   // get entry from database
-  getItem: function(collection, item) {
-
+  getItem: function(data) {
+    socket.emit(data);
   },
-
+  getUserData: function(data) {
+    socket.emit('get_user_data', data);
+  },
   // update entry in database
-  updateItem: function(collection, item) {
-
-  },
 
   // log in 
   login: {
@@ -273,4 +275,15 @@ app.functions = {
       }
     }   
   }
+}
+
+
+var items = ['song', 'station', 'group'];
+function create(items, numberOfEach) {
+  items.forEach(function(item){
+    for (var i = 0; i < numberOfEach; i++) {
+      var data = new Models.reqData({collection: item, item: new Models[item]});
+      socket.emit('create', data);
+    }
+  })
 }

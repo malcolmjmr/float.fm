@@ -25,9 +25,10 @@ exports.createRoutes = function(app_ref) {
   // app routes 
   app.io.route('ready', f.ready);
   app.io.route('create', f.create);
-  //app.io.route('update', f.update);
-  //app.io.route('delete', f.delete);
-  //app.io.route('send', f.send);
+  app.io.route('update', f.update);
+  app.io.route('delete', f.delete);
+  app.io.route('get', f.get);
+  app.io.route('get_user_data', f.getUserData);
 
   /*app.io.route('song', {
     create: f.song.create

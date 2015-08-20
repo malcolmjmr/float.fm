@@ -4,9 +4,7 @@ var Models = {
     if (app.user) {
       this.userId = app.user._id;
     }
-    this.collection = "";
     this.item = null;
-
     if (options) {
       for (option in options) {
         this[option] = options[option];
@@ -31,6 +29,7 @@ var Models = {
     this.downvotes =  [];
     this.playCount =  [];
     this.palyedBy = [];
+    this.type = 'song';
   },
   user: function(options) {
 
@@ -47,6 +46,7 @@ var Models = {
     this.hashtags = [];
     this.upvotes = [app.user._id];
     this.downvotes = [];
+    this.type = 'group';
     if (options) {
       for (option in options) {
         this[option] = options[option];
@@ -62,6 +62,7 @@ var Models = {
     this.hashtags = [];
     this.upvotes = [app.user._id];
     this.downvotes = [];
+    this.type = 'playlist';
     if (options) {
       for (option in options) {
         this[option] = options[option];
@@ -77,6 +78,7 @@ var Models = {
     this.hashtags = [];
     this.upvotes = [app.user._id];
     this.downvotes = [];
+    this.type = 'station';
     if (options) {
       for (option in options) {
         this[option] = options[option];
@@ -94,3 +96,4 @@ var Models = {
     }
   }
 }
+

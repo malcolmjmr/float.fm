@@ -33,7 +33,8 @@ var userSchema = mongoose.Schema({
         token        : String,
         email        : String,
         name         : String
-    }
+    },
+    active           : Boolean
 
 });
 
@@ -61,6 +62,7 @@ var songSchema = mongoose.Schema({
   stations : Array,
   playCount: Array,
   playedBy: Array,
+  type: String
 });
 
 var groupSchema = mongoose.Schema({
@@ -75,7 +77,9 @@ var groupSchema = mongoose.Schema({
   hashtags    : Array,
   txnHistory  : Array,
   upvotes     : Array,
-  downvotes   : Array
+  downvotes   : Array,
+  type        : String,
+  active      : Boolean
 });
 
 var stationSchema = mongoose.Schema({
@@ -89,6 +93,8 @@ var stationSchema = mongoose.Schema({
   hashtags      : Array,
   upvotes       : Array,
   downvotes     : Array,
+  type          : String,
+  status        : Boolean
 });
 
 var sessionSchema = mongoose.Schema({
