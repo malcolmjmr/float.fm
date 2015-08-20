@@ -65,7 +65,7 @@ app.use(passport.session()); // persistent login sessions
 //app.io.use(ios(session));
 app.use(flash());
 
-
+console.log(path.join(app.get('root'),'../'));
 // routes 
 require(__dirname + '/routes').createRoutes(app);
 

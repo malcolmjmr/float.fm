@@ -54,15 +54,23 @@ var songSchema = mongoose.Schema({
   artist  : String,
   album   : String,
   genre   : String,
-  location  : String,
-  cover   : String,
+  location  : {
+      local: String,
+      hosted: String
+  },
+  coverLocation : {
+    local: String,
+    hosted: String
+  },
   hashtags: Array,
   upvotes : Array,
   downvotes: Array,
   stations : Array,
   playCount: Array,
   playedBy: Array,
-  type: String
+  type: String,
+  from: String,
+
 });
 
 var groupSchema = mongoose.Schema({

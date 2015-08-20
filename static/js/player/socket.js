@@ -63,6 +63,7 @@ socket.on('updated_user_groups', function(res) {
 })
 
 socket.on('user_data_sent', function(response) {
+  console.log(response);
   for (collection in response) {
     app.user[collection] = response[collection];
   }

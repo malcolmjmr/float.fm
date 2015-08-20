@@ -17,19 +17,26 @@ var Models = {
     this.artist = "Unknown";
     this.album = "Unknown";
     this.genre = "Unknown";
-    this.locaiton = "Unknown";
-    this.cover = "Unknown";
+    this.location = {
+      local: "Unknown",
+      hosted: "Unknown"
+    };
+    this.coverLocation = {
+      local: "Unknown",
+      hosted: "Unknown"
+    };
     this.hashtags = [];
     this.upvotes =  [app.user._id];
+    this.downvotes =  [];
+    this.playCount =  [];
+    this.palyedBy = [];
+    this.type = 'song';
+    this.from = "Unknown";
     if (options) {
       for (option in options) {
         this[option] = options[option];
       }
     }
-    this.downvotes =  [];
-    this.playCount =  [];
-    this.palyedBy = [];
-    this.type = 'song';
   },
   user: function(options) {
 
