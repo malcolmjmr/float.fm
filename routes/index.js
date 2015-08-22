@@ -21,13 +21,14 @@ exports.createRoutes = function(app_ref) {
   app.get('/auth/twitter/callback', twitterCallback(passport));
   app.post('/logout', logout);
   app.get('/', isLoggedIn, mainPage);
-  app.get('/sendsong', sendSong);
+  app.get('/sendsong', f.sendSong);
+  //app.get('cover:id', f.sendCover);
   // app routes 
   app.io.route('ready', f.ready);
   app.io.route('create', f.create);
   app.io.route('update', f.update);
   app.io.route('delete', f.delete);
-  app.io.route('get', f.get);
+  app.io.route('getUser', f.getUser);
   app.io.route('get_user_data', f.getUserData);
   app.io.route('download', f.download);
 

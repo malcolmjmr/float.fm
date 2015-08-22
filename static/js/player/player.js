@@ -3,23 +3,39 @@
 app.player = {
   que: [],
   currentSong: null,
-  download: function(song) {
+  isPlaying: false,
+  downloadToServer: function(song) {
     var data = {
-      usrerId: app.user._id,
+      userId: app.user._id,
       item: song
     };
-    return {
-      toClient: function() {
-      },
-      toServer: function() {  
-        console.log(data);
-        socket.emit('download', data);
+    socket.emit('download', data);
+  },
+  addToQue: function(song) {
+    app.player.que.push(song);
+  },
+  deleteFromQue: function(song) {
+    que.forEach(function(songIndex) {
+      if (que[songIndex]._id === song._id) {
+        que.splice(songIndex, 1);
       }
+    });
+  },
+  play: function(song) {
+    if (song) {
+      app.player.que.unshift(song);
+      app.player.currentSong = 0;
+    }
+
+    if (app.player.que.length > 0) {
+      if (!app.player.currentSong) {
+        app.player.currentSong = 0;
+      }
+      app.player.audioPlayer.src = '/sendsong/?id='+app.player.que[app.player.currentSong]._id;
+      app.player.audioPlayer.play();
     }
   },
-  play: function() {
-
-  },
+  audioPlayer: new Audio(),
   pause: function() {
 
   },

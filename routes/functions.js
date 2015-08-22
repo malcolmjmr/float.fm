@@ -8,12 +8,22 @@ var request = require('request');
 var mkdirp = require('mkdirp');
 var path = require('path');
 var md5 = require('md5');
+var root = path.join(__dirname, '../');
 
 
 var functions = {
   ready: function(req) {
     console.log(req);
-
+  },
+  sendUser: function(req) {
+    var session = JSON.parse(req.session.session);
+    if(session.passport.user === req.data.userId) {
+      db.user.findOne({_id: req.data.userId}, function(err, user) {
+        if (!err) {
+          req.io.emit('user_sent', user);
+        }
+      })
+    }
   },
   create: function(req) { 
     if (isValidRequest(req)) {
@@ -22,6 +32,7 @@ var functions = {
       var newEntry = new db[collection](req.data.item);
       // save new entry 
       newEntry.save(function(err, entry) {
+        console.log('saved entry: '+entry._id);
         req.io.emit('created_'+ collection, entry);
         // update users txn record
         db.user.findOne({_id: req.data.userId},  function(err, user) {
@@ -49,6 +60,7 @@ var functions = {
       // get item from collection 
       db[collection].findOne({_id: req.data.item._id}, function (err, entry) {
         if (err) throw err;
+        console.log('updated'+entry._id);
         // update item
         for (element in req.data.item) {
           entry[element] = req.data.item[element];
@@ -86,87 +98,27 @@ var functions = {
     var response = {};
     var dataManager = new EventEmitter();
     var collectionNames = ['songs','groups','stations'];
-    var queries = {};
-    collectionNames.forEach(function(collectionName) {
-      response[collectionName] = [];
-      queries[collectionName] = {
-        notFound: [],
-        completed: 0,
-        total: null
-      };
-    });
     // get user 
     db.user.findOne({_id: req.data.userId}, function(err, user) {
       for (var col = 0; col < collectionNames.length; col++) {
         var collectionName = collectionNames[col];
         var collection = user[collectionName];
-        var query = {
-          collectionName: collectionName,
-          notFound: collection,
-          total: collection.length
-        }; 
-        // log query 
-        dataManager.emit('collection_query', query); 
-        // find each item in a given user collection
-        console.log(collectionName);
-        console.log(collection.length);
         for (var itemIndex = 0; itemIndex < collection.length; itemIndex++) {
-          queries[collectionName].completed++;
           db[collectionName.substr(0, collectionName.length - 1)].findOne({_id: collection[itemIndex]}, function(err, item) {
             if (!err) {
               if (item) {
               // send entry to response if it exist in the db
-                dataManager.emit('new_data', item);
+                req.io.emit('new_item_details', item);
               }
             }
           });
         }
       }
     });
-    dataManager.on('collection_query', function(query) {
-      queries[query.collectionName].notFound = query.notFound;
-      queries[query.collectionName].total = query.total;
-    });
-
-    //  record completed queries in respsonse and query log
-    dataManager.on('new_data', function(item) {
-      // remove the item from the 
-      // queries.notFound list if item exists
-      if (item) {
-        var itemType = item.type + 's';
-        response[itemType].push(item);
-        var itemIndex = queries[itemType].notFound.indexOf(item._id);
-        queries[itemType].notFound.splice(itemIndex, 1);
-        if (queries[itemType].completed == queries[itemType].total) {
-          dataManager.emit('processed_entire_collection', itemType);
-        }
-      }
-
-    }); 
-    // check if all collections have 
-    // been processed after each is processed
-    dataManager.on('processed_entire_collection', function(collectionName) {
-      console.log('processed entire collection: '+collectionName);
-      var collectionsProcessed = 0;
-      collectionNames.forEach(function(collectionName) {
-        if (queries[collectionName].completed === queries[collectionName].total) {
-          collectionsProcessed++;
-        }
-      })
-      if (collectionsProcessed === collectionNames.length) {
-        console.log('received_all_data');
-        dataManager.emit('received_all_data');
-      }
-
-    });
-    // send responce if all data is received
-    dataManager.on('received_all_data', function() {
-      req.io.emit('user_data_sent', response);
-    });
   },
   download: function(req) {
     var item = req.data.item;
-    console.log('downloading file');
+    console.log('downloading file: '+item.location.hosted);
     if (isValidRequest(req)) {
       console.log('req is valid');
       switch (req.data.item.from) {
@@ -174,31 +126,25 @@ var functions = {
         case 'soundcloud': 
           console.log('file is from soundcloud');
           var crawler = new soundcrawler();
-          var download = true;
+          var download = false;
           var url = item.location.hosted;
           crawler.download(url, download, function(err) {
             if (err) throw err;
             else {
-              console.log(crawler);
               scres.resolve(url, function(err, tracks) {
                 var songInfo = tracks[0];
-                var song = new db.song(item);
-                song.title = songInfo.title;
-                song.markModified('title');
-                song.duration = songInfo.duration/1000;
-                song.genre = songInfo.genre;
-                song.description = songInfo.description;
-                song.coverLocation.hosted = songInfo.artwork_url;
-                song.artist = songInfo.user.username;
-                var locationFormat = song.artist+'/'+song.album+'/';
+                req.data.item.title = songInfo.title;
+                req.data.item.duration = songInfo.duration/1000;
+                req.data.item.genre = songInfo.genre;
+                req.data.item.description = songInfo.description;
+                req.data.item.coverLocation.hosted = songInfo.artwork_url;
+                req.data.item.artist = songInfo.user.username;
+                var locationFormat = req.data.item.artist+'/'+req.data.item.album+'/';
                 mkdirp.sync(path.join(__dirname, '../','tracks/'+locationFormat));
                 mkdirp.sync(path.join(__dirname, '../','covers/'+locationFormat))
-                song.location.local = 'tracks/'+locationFormat+song.title+'.mp3';
-                song.coverLocation.local = 'covers/'+locationFormat+song.title+'.jpeg';
-                song.save(function(err, entry) {
-                  if (err) throw err;
-                  console.log(entry);
-                });
+                req.data.item.location.local = 'tracks/'+locationFormat+req.data.item.title+'.mp3';
+                req.data.item.coverLocation.local = 'covers/'+locationFormat+req.data.item.title+'.jpeg';
+                
                 request( crawler.downloadURL, function(error, response, body) {
                   if (error) throw err;
 
@@ -209,51 +155,41 @@ var functions = {
                   request(songInfo.artwork_url, function(error, response, body) {
                     if (error) throw err;
 
-                    fs.exists(path.join(__dirname, '../', song.coverLocation.local), function(exists) {
+                    fs.exists(path.join(__dirname, '../', req.data.item.coverLocation.local), function(exists) {
                       if (!exists) {
 
-                        fs.writeFile(path.join(__dirname, '../', song.coverLocation.local), body, function(err) {
+                        fs.writeFile(path.join(__dirname, '../', req.data.item.coverLocation.local), body, function(err) {
                           if (err) throw err;
+                          var operation = 'create';
+                          if (req.data.item._id) {
+                            operation = 'update';
+                          }
+                          req.data.item = item;
+                          functions[operation](req);
                         });
                       }
                     });
                   });
-                }).pipe(fs.createWriteStream(path.join(__dirname, '../', song.location.local)));
+                }).pipe(fs.createWriteStream(path.join(__dirname, '../', req.data.item.location.local)));
               })
             }
           });
           break;
         default: 
       }
-      if (!req.data.item._id) {
-        functions.create(req);
-      }
     }
-    // 
-
   },
 
-
-  // add entry to database 
-  addItem: function(collection, item) {
-    var entry = new db[collection](item);
-    entry.save(function(err) {
-      if (err) { throw err; }
+  sendSong: function(req, res, callback) {
+    console.log(req.query.id);
+    db.song.findOne({_id: req.query.id}, function(err, song){
+      if(err || !song){
+        res.status(404).send();
+      } else {     
+        console.log(song); 
+        res.sendfile(path.join(root, encodeURIComponent(song.location.local)));
+      }
     });
-  },
-
-  // get entry from database
-  getItem: function(collection, item) {
-    db[collection].findOne({_id: item._id}, function(err, entry) {
-      console.log(entry);
-    });
-  },
-
-  // update entry in database
-  updateItem: function(collection, item) {
-    db[collection].update({_id: item._id}, item, function(err) {
-      if (err) { throw err; }
-    })
   }
 };
 

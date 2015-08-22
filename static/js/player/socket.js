@@ -69,4 +69,21 @@ socket.on('user_data_sent', function(response) {
   }
 });
 
+socket.on('new_item_details', function(item) {
+  console.log('new_item_details');
+  var collection = item.type+'s';
+  for (var itemIndex = 0; itemIndex < app.user[collection].length; itemIndex++) {
+    if (app.user[collection][itemIndex]._id) {
+      if (app.user[collection][itemIndex]._id === item._id) {
+        console.log('adding_new_details');
+        app.user[collection][itemIndex] = item;
+      }
+    } else {
+      if (app.user[collection][itemIndex] === item._id) {
+        app.user[collection][itemIndex] = item;
+      }
+    }
+  }
+})
+
 
