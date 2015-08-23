@@ -20,15 +20,10 @@ var configDB = require('./config/database.js');
 mongoose.connect(configDB.url); // connect to our database
 var MongoClient = require('mongodb').MongoClient;
 var sessionStore = new Yams(function (callback) {
-  //this will be called once, you must return the collection sessions.
   MongoClient.connect(configDB.url, function (err, db) {
     if (err) return callback(err);
-
     var sessionsCollection = db.collection('sessions')
-
-    //use TTL in mongodb, the document will be automatically expired when the session ends.
     sessionsCollection.ensureIndex({expires:1}, {expireAfterSeconds: 0}, function(){});
-
     callback(null, sessionsCollection);
   });  
 });
@@ -62,10 +57,8 @@ app.use(session({
 }));
 app.use(passport.initialize());
 app.use(passport.session()); // persistent login sessions
-//app.io.use(ios(session));
 app.use(flash());
 
-console.log(path.join(app.get('root'),'../'));
 // routes 
 require(__dirname + '/routes').createRoutes(app);
 

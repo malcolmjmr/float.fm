@@ -9,6 +9,11 @@ var mkdirp = require('mkdirp');
 var path = require('path');
 var md5 = require('md5');
 var root = path.join(__dirname, '../');
+var musicDir = path.join(root, '/tracks/');
+var coverDir = path.join(root, '/covers/');
+var ffmpeg = require('fluent-ffmpeg');
+var ytdl = require('ytdl-core');
+var async = require('async');
 
 
 var functions = {
@@ -117,18 +122,99 @@ var functions = {
     });
   },
   download: function(req) {
-    var item = req.data.item;
-    console.log('downloading file: '+item.location.hosted);
     if (isValidRequest(req)) {
-      console.log('req is valid');
+      var item = req.data.item;
+      var url = req.data.item.location.hosted;
       switch (req.data.item.from) {
-        case 'youtube': break;
+        case 'youtube': 
+        var downloadLocation = null;
+          mkdirp(musicDir, function(){
+            async.waterfall([
+              function(callback) {
+                ytdl.getInfo(url, function(err, songInfo) {
+                  if(!err) {;
+                    var dashpos = songInfo.title.indexOf('-');
+                    var title = songInfo.title;
+                    var artist = songInfo.title;
+
+                    // if there is a dash, set them in the assumed format [title] - [artist]
+                    if(dashpos != -1){
+                      title = songInfo.title.substr(dashpos + 1);
+                      if (title[0] === " ") {
+                        title = title.substr(1)
+                      }
+                      artist = songInfo.title.substr(0, dashpos);
+                      if (artist[artist.length - 1] === " ") {
+                        artist = artist.substr(0, artist.length - 1);
+                      }
+                    }
+                    
+                    req.data.item.title = title;
+                    req.data.item.duration = songInfo.length_seconds;
+                    req.data.item.genre = songInfo.genre || 'Unkown';
+                    //req.data.item.description = songInfo.description;
+                    req.data.item.coverLocation.hosted = songInfo.iurl;
+                    req.data.item.artist = artist;
+                    songInfo.keywords.forEach(function(keyword) {
+                      req.data.item.hashtags.push(keyword);
+                    })
+                    var locationFormat = req.data.item.artist+'/'+req.data.item.album+'/';
+                    mkdirp.sync(path.join(musicDir+locationFormat));
+                    mkdirp.sync(path.join(coverDir+locationFormat));
+                    req.data.item.location.local = 'tracks/'+locationFormat+req.data.item.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()+'.mp3';
+                    req.data.item.coverLocation.local = 'covers/'+locationFormat+req.data.item.title+'.jpeg';
+                    downloadLocation = path.join(root, req.data.item.location.local);
+                    fs.exists(downloadLocation, function(exists) {
+                      if(!exists) {
+                        callback();
+                      } else {
+                        callback(true, {
+                          message: "Youtube track already exists."
+                        });
+                      }
+                    });
+                  } else {
+                    callback(true, {
+                      message: "Error fetching info: " + err
+                    });
+                  }
+                });
+              },
+              function(callback) {
+                console.log(req.data.item);
+                ffmpeg(ytdl(url, {
+                    quality: "highest",
+                    filter: function(format) { return format.resolution === null; }
+                  }))
+                  .noVideo()
+                  .audioCodec('libmp3lame')
+                  .on('start', function() {
+                    console.log("Started converting Youtube movie to mp3");
+                  })
+                  .on('end', function() {
+                    callback(false);
+                  })
+                  .on('error', function(err) {
+                    callback(err, {message: err});
+                  })
+                  .save(downloadLocation);
+              }
+            ], function(error, errorMessage) {
+              if(!error) {
+                var operation = 'create';
+                if (req.data.item._id) {
+                  operation = 'update';
+                }
+                functions[operation](req);
+              } else {
+                console.log("Error: " + errorMessage.message);
+              }
+            });
+          });
+          break;
         case 'soundcloud': 
-          console.log('file is from soundcloud');
           var crawler = new soundcrawler();
-          var download = false;
-          var url = item.location.hosted;
-          crawler.download(url, download, function(err) {
+          crawler.download(url, false, function(err) {
             if (err) throw err;
             else {
               scres.resolve(url, function(err, tracks) {
@@ -140,8 +226,8 @@ var functions = {
                 req.data.item.coverLocation.hosted = songInfo.artwork_url;
                 req.data.item.artist = songInfo.user.username;
                 var locationFormat = req.data.item.artist+'/'+req.data.item.album+'/';
-                mkdirp.sync(path.join(__dirname, '../','tracks/'+locationFormat));
-                mkdirp.sync(path.join(__dirname, '../','covers/'+locationFormat))
+                mkdirp.sync(path.join(musicDir+locationFormat));
+                mkdirp.sync(path.join(coverDir+locationFormat));
                 req.data.item.location.local = 'tracks/'+locationFormat+req.data.item.title+'.mp3';
                 req.data.item.coverLocation.local = 'covers/'+locationFormat+req.data.item.title+'.jpeg';
                 
@@ -155,22 +241,21 @@ var functions = {
                   request(songInfo.artwork_url, function(error, response, body) {
                     if (error) throw err;
 
-                    fs.exists(path.join(__dirname, '../', req.data.item.coverLocation.local), function(exists) {
+                    fs.exists(path.join(root, req.data.item.coverLocation.local), function(exists) {
                       if (!exists) {
 
-                        fs.writeFile(path.join(__dirname, '../', req.data.item.coverLocation.local), body, function(err) {
+                        fs.writeFile(path.join(root, req.data.item.coverLocation.local), body, function(err) {
                           if (err) throw err;
                           var operation = 'create';
                           if (req.data.item._id) {
                             operation = 'update';
                           }
-                          req.data.item = item;
                           functions[operation](req);
                         });
                       }
                     });
                   });
-                }).pipe(fs.createWriteStream(path.join(__dirname, '../', req.data.item.location.local)));
+                }).pipe(fs.createWriteStream(path.join(root, req.data.item.location.local)));
               })
             }
           });
@@ -181,12 +266,10 @@ var functions = {
   },
 
   sendSong: function(req, res, callback) {
-    console.log(req.query.id);
     db.song.findOne({_id: req.query.id}, function(err, song){
       if(err || !song){
         res.status(404).send();
       } else {     
-        console.log(song); 
         res.sendfile(path.join(root, encodeURIComponent(song.location.local)));
       }
     });
@@ -266,4 +349,3 @@ var correctUser = function(userId, callback) {
 var editUserData = function(req, entry) {
 
 }
-
