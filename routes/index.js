@@ -89,8 +89,6 @@ function localSignup(req, res, next) {
     if (err) { 
       consoel.log(err);
       response.error = err;
-    } else if (user) { 
-      response.error = "User already exists"; 
     } else {
       response.isLoggedIn = true;
     }

@@ -6,107 +6,64 @@ socket.on('connect', function(){
   socket.emit('ready');
 });
 
-socket.on('song_sent', function(library) {
-  app.user.songs = libary;
-  app.user.currentSong = 0;
-});
-
-socket.on('send_groups', function(groups) {
-  app.user.groups = groups;
-  app.user.currentGroup = 0;
-});
-
-socket.on('send_stations', function(stations) {
-  app.user.stations = stations;
-  app.user.currentStation = 0;
-})
-
-socket.on('song_added', function(res) {
-  if (res.error) {
-    console.log(res.error);
-  } else {
-    console.log(res.data);
-  }
-});
-
-socket.on('song_updated', function(res) {
-  if (res.error) {
-    console.log(res.error);
-  } else {
-    console.log(res.data);
-  }
-});
-
-socket.on('created_song', function(res) {
-  console.log(res);
-});
-
-socket.on('updated_user_songs', function(res) {
-  console.log(res);
-});
-
-socket.on('updated_song', function (res) {
-  console.log(res);
-})
-
-var collectionNames = ['songs','stations','groups'];
-
-collectionNames.forEach(function(collectionName) {
-  socket.on('upadated_user_'+collectionName, function(res) {
-    console.log(res);
-  });
-  socket.on('updated_'+collectionName, function(res) {
-    console.log(res);
-  });
-});
-
-socket.on('updated_user_groups', function(res) {
-  console.log(res);
-})
-
-socket.on('user_data_sent', function(response) {
-  console.log(response);
-  for (collection in response) {
-    app.user[collection] = response[collection];
-  }
-});
 
 socket.on('db_item_details', function(item) {
   console.log(item);
-  var room = item.type+':'+item._id;
-  var alreadySubscribed = -1 !== app.subscribed.indexOf(room);
 
-  if (!alreadySubscribed) {
-    socket.emit('subscribe', room);
-    app.subscribed.push(room);
-  }
-
-  var collection = item.type+'s';
-  if (collection === 'users') {
+  var collectionName = item.type+'s';
+  if (collectionName === 'users') {
     if (app.user === undefined) {
-      app.user = item; 
+      app.user = item;
+      app.initiate();
       app.db.getUserData();
+      app.collectionNames.forEach(function (collectionName) {
+        if (collectionName !== 'subscribed') {
+          var ids = app.user[collectionName];
+          ids.forEach(function (id) {
+            app.toggleSubscription({
+              _id: id,
+              type: collectionName.substr(0, collectionName.length - 1)
+            });
+          })
+        }
+      });
     } else {
       app.user = item;
+      app.collectionNames.forEach(function (collectionName) {
+        var type = collectionName.substr(0, collectionName.length - 1)
+        var newSubscriptions = helpers.getSubsToChange(
+          type, 
+          app.subscribed, 
+          app.user[collectionName]
+        );
+        newSubscriptions.forEach(function (subscription) {
+          var subItem = {
+            type: type,
+            _id: subscription
+          };
+          app.toggleSubscription(subItem);
+        })
+      })
+      
     }
   } else {
     var itemExists = false;
 
-    for (var itemIndex = 0; itemIndex < app[collection].length; itemIndex++) {
-      if (app[collection][itemIndex]._id) {
-        if (app[collection][itemIndex]._id === item._id) {
+    for (var itemIndex = 0; itemIndex < app[collectionName].length; itemIndex++) {
+      if (app[collectionName][itemIndex]._id) {
+        if (app[collectionName][itemIndex]._id === item._id) {
           itemExists = true;
-          app[collection][itemIndex] = item;
+          app[collectionName][itemIndex] = item;
         }
       } else {
-        if (app[collection][itemIndex] === item._id) {
+        if (app[collectionName][itemIndex] === item._id) {
           itemExists = true;
-          app[collection][itemIndex] = item;
+          app[collectionName][itemIndex] = item;
         }
       }
     }
     if (!itemExists) {
-      app[collection].push(item);
+      app[collectionName].push(item);
     }
   }
   

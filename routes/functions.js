@@ -33,17 +33,13 @@ var routes = {
     })
   },
   getItem: function(req) {
-    console.log('getting item');
     if (isValidRequest(req)) {
-      console.log('valid request');
       var sessionUser = JSON.parse(req.session.session).passport.user;
       var collection = req.data.item.type;
       var viewableItem = {
         _id: req.data.item._id,
         type: req.data.item.type
       };
-      console.log(sessionUser);
-      console.log(collection);
       db[collection].findOne({_id: req.data.item._id}, function (err, item) {
         if (err) {
           console.log(err);
@@ -52,7 +48,6 @@ var routes = {
             message: err
           });
         } else {
-          console.log(item.type);
           switch(item.type) {
             case 'user': 
               // check if requested user is session user
@@ -90,7 +85,6 @@ var routes = {
 
               break;
             case 'goup': 
-              console.log('getting group');
               // check if user is active member of group
               var isMember = false;
               item.members.forEach(function (member) {
@@ -115,7 +109,6 @@ var routes = {
               }
               break;
             default:
-              console.log('got_item'); 
               req.io.emit('db_item_details', item);
           }
           
@@ -125,7 +118,6 @@ var routes = {
   },
   getCollection: function(req) {
     if (isValidRequest(req)) {
-      console.log('gettign collection');
       db[req.data.item.type].find({}, function (err, collection){
         if (err) {
           req.io.emit('error', {
@@ -133,7 +125,6 @@ var routes = {
             message: err
           });
         } else {
-          console.log(collection);
           var data = {
             name: req.data.item.type,
             items: collection
@@ -166,6 +157,7 @@ var routes = {
               collection: collection,
               itemId: item._id,
               createdOn: new Date(Date.now()),
+              createdBy: req.data.userId
             };
             user.txnHistory.push(txn);
             user.save(function (err, updateUser) {
@@ -194,22 +186,6 @@ var routes = {
         item.save(function(err) {
           req.io.room(item.type+item._id).broadcast('db_item_details', item);
           req.io.emit('db_item_details', item);
-          if (item.type !== 'user') {
-            db.user.findOne({_id: req.data.userId},  function (err, user) {
-              var txn = {
-                operation: req.data.type,
-                collection: collection,
-                itemId: item._id,
-                createdOn: new Date(Date.now()),
-              };
-              user.txnHistory.push(txn);
-              user.save(function(err, updatedUser) {
-                if (!err) {
-                  req.io.emit('db_item_details', updatedUser);
-                }
-              });
-            });
-          }
         })
       })
 
@@ -265,7 +241,7 @@ var routes = {
             async.waterfall([
               function(callback) {
                 ytdl.getInfo(url, function(err, currentTrack) {
-                  if(!err) {;
+                  if(!err) {
                     var dashpos = currentTrack.title.indexOf('-');
                     var title = currentTrack.title;
                     var artist = currentTrack.title;
@@ -361,15 +337,52 @@ var routes = {
               }
               async.until(function(){ return tracks.length === 0; }, function(callback) {
                 var currentTrack = tracks.pop();
-                req.data.item.title = currentTrack.title;
+                var dashpos = currentTrack.title.indexOf('-');
+                var title = currentTrack.title;
+                var artist = currentTrack.user.username;
+
+                // if there is a dash, set them in the assumed format [title] - [artist]
+                if(dashpos != -1){
+                  title = currentTrack.title.substr(dashpos + 1);
+                  if (title[0] === " ") {
+                    title = title.substr(1)
+                  }
+                  artist = currentTrack.title.substr(0, dashpos);
+                  if (artist[artist.length - 1] === " ") {
+                    artist = artist.substr(0, artist.length - 1);
+                  }
+                }
+                // get hashtags
+                var tags = currentTrack.tag_list.split('');
+                var tagStarted = false;
+                var hashtag = '';
+                while (tags.length > 0) {
+                  var character = tags.shift();
+                  switch (character) {
+                    case '"': 
+                      if (tagStarted) {
+                        tagStarted = false;
+                        req.data.item.hashtags.push(hashtag.toLowerCase());
+                        hashtag = '';
+                      } else {
+                        tagStarted = true;
+                      }
+                      break;
+                    case ' ': break;
+                    default: 
+                      if (tagStarted) {
+                        hashtag += character;
+                      }
+                  }
+                } 
+                req.data.item.title = title;
                 req.data.item.duration = currentTrack.duration/1000;
                 req.data.item.genre = currentTrack.genre;
                 req.data.item.description = currentTrack.description;
                 req.data.item.coverLocation.origin = currentTrack.artwork_url;
-                req.data.item.artist = currentTrack.user.username;
+                req.data.item.artist = artist;
                 var locationFormat = req.data.item.artist+'/'+req.data.item.album+'/';
                 mkdirp.sync(path.join(musicDir+locationFormat));
-                mkdirp.sync(path.join(coverDir+locationFormat));
                 req.data.item.location.hosted = 'tracks/'+locationFormat+req.data.item.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()+'.mp3';
                 
                 var location = path.join(root, req.data.item.location.hosted);

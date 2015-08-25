@@ -12,6 +12,7 @@ var userSchema = mongoose.Schema({
     playlists        : Array,
     groups           : Array,
     friends          : Array,
+    requests         : Array,
     txnHistory       : Array, 
     local            : {
         email        : String,
@@ -35,7 +36,7 @@ var userSchema = mongoose.Schema({
         email        : String,
         name         : String
     },
-    status           : Boolean,
+    status           : String,
     type             : String,
     settings         : {
       viewableByFriends: Array,
@@ -77,7 +78,8 @@ var songSchema = mongoose.Schema({
   stations : Array,
   playCount: Array,
   playedBy: Array,
-  type: String
+  type: String,
+  txnHistory: Array
 
 });
 
@@ -105,6 +107,7 @@ var groupSchema = mongoose.Schema({
   hashtags      : Array,
   votes         : Array,
   type          : String,
+  txnHistory    : Array,
   status        : Boolean,
 });
 

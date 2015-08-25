@@ -28,8 +28,11 @@ var Models = {
       origin: "Unknown"
     };
     this.hashtags = [];
-    this.upvotes =  [app.user._id];
-    this.downvotes =  [];
+    this.votes = [{_id: app.user._id, vote: 1}];
+    this.txnHistory = [new Models.txn({
+      operation: 'create',
+      itemId: app.user._id
+    })];
     this.playCount =  [];
     this.palyedBy = [{_id: app.user._id}];
     this.type = 'song';
@@ -51,8 +54,11 @@ var Models = {
     this.playlists = [];
     this.stations = [];
     this.hashtags = [];
-    this.upvotes = [app.user._id];
-    this.downvotes = [];
+    this.txnHistory = [new Models.txn({
+      operation: 'create',
+      itemId: app.user._id
+    })];
+    this.votes = [{_id: app.user._id, vote: 1}];
     this.type = 'hashtag';
     if (options) {
       for (option in options) {
@@ -87,6 +93,10 @@ var Models = {
     this.hashtags = [];
     this.votes = [{ user: app.user._id, vote: 1}];
     this.type = 'group';
+    this.txnHistory = [new Models.txn({
+      operation: 'create',
+      itemId: app.user._id
+    })];
     this.settings = {
       viewableByPublic: ['songs','followers','hashtags','votes']
     }
@@ -96,10 +106,12 @@ var Models = {
       }
     }    
   },
-  txn: function(options) {
-    this.createdBy = "Unknown";
-    this.createdOn = "Unknown";
-    this.operation = "Unknown";
+  txn: function (options) {
+    this.operation = null;
+    this.collections = [];
+    this.itemId = null;
+    this.createdOn = new Date(Date.now());
+    this.createdBy = app.user._id;
     if (options) {
       for (option in options) {
         this[option] = options[option];
@@ -107,4 +119,5 @@ var Models = {
     }
   }
 }
+
 

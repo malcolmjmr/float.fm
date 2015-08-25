@@ -5,70 +5,95 @@ var app = {
       app[collectionName] = [];
     });
   }, 
+
   add: function (item) {
-    app.db.getItem(item);
+    var userTxn = new Models.txn({
+      operation: 'add',
+      itemId: item._id
+    });
+    var itemTxn = new Models.txn({
+      itemId: app.user._id
+    })
     switch(item.type) {
       case 'user': 
         app.user.friends.push(item._id);
         item.requests.push(app.user._id);
-        app.db.update(app.user);
-        app.db.update(item, 'add');
+        userTxn.collections.push('friends');
+        itemTxn.operation = 'request';
+        itemTxn.collections.push('requests');
         break;
       case 'song':
         app.user.songs.push(item._id);
+        userTxn.collections.push('songs');
         item.playedBy.push(app.user._id);
-        app.db.update(app.user);
-        app.db.update(item, 'add');
+        itemTxn.collections.push('playedBy');
+        itemTxn.operation = 'add';
         break;
       case 'hashtag': 
         app.user.hashtags.push(item._id);
+        userTxn.collections.push('hashtags');
         item.followers.push(app.user._id);
-        app.db.update(app.user);
-        app.db.update(item, 'add');
+        itemTxn.collections.push('followers');
+        itemTxn.operation = 'add';
         break;
       case 'group': 
         app.user.groups.push(item._id);
         item.members.push(app.user._id);
-        app.db.update(app.user);
-        app.db.update(item, 'add');
         break;
-      default: 
     }
+    app.user.txnHistory.push(userTxn);
+    item.txnHistory.push(itemTxn);
+    app.db.update(app.user);
+    app.db.update(item);
     
   },
   remove: function (item) {
     var itemToRemove = app.user[item.type+'s'].indexOf(item._id)
-    console.log(item.type);
+    var userTxn = new Models.txn({
+      operation: 'remove',
+      itemId: item._id
+    });
+    var itemTxn = new Models.txn({
+      operation: 'remove',
+      itemId: app.user._id
+    })
     switch(item.type) {
       case 'user': 
         itemToRemove = app.user.friends.indexOf(item._id);
         app.user.friends.splice(itemToRemove, 1);
-        app.db.update(app.user);
+        userTxn.collections.push('friends');
         break;
       case 'song':
         app.user.songs.splice(itemToRemove, 1);
-        app.db.update(app.user, 'remove');
+        userTxn.collections.push('songs');
         break;
       case 'hashtag': 
         app.user.hashtags.splice(itemToRemove, 1);
+        userTxn.collections.push('hashtags');
         itemToRemove = item.followers.indexOf(item);
         item.followers.splice(itemToRemove, 1);
-        app.db.update(app.user);
-        app.db.update(item, 'remove');
+        itemTxn.collections.push('followers');
         break;
       case 'group': 
         app.user.groups.splice(itemToRemove, 1);
+        userTxn.collections.push('groups');
         itemToRemove = item.followers.indexOf(item);
         item.followers.splice(itemToRemove, 1);
+        itemTxn.collections.push('followers');
         itemToRemove = item.members.indexOf(item);
         item.members.splice(itemToRemove, 1);
+        if (itemToRemove > -1) {itemTxn.collections.push('members');}
         itemToRemove = item.admins.indexOf(item);
         item.admins.splice(itemToRemove, 1);
-        app.db.update(app.user);
-        app.db.update(item, 'remove');
+        if (itemToRemove > -1) {itemTxn.collections.push('admins');}
         break;
-      default: 
     }
+    app.user.txnHistory.push(userTxn);
+    if (item.type === 'group' || item.type === 'hashtag') {
+      item.txnHistory.push(itemTxn);
+    }
+    app.db.update(app.user);
+    app.db.update(item);
   },
   edit: function(item) {
     app.db.update(item);
@@ -89,11 +114,22 @@ var app = {
         });
         console.log(group.name+'| Me: '+message);
       }
-    })
-    
+    }) 
   },
   getAll: function(type) {
     app.db.getCollection({type: type});
+  },
+  toggleSubscription: function(item) {
+    var room = item.type+':'+item._id;
+    var itemIndex = app.subscribed.indexOf(room)
+    var isSubscribed = -1 !== itemIndex;
+    if (isSubscribed) {
+      app.subscribed.splice(itemIndex, 1);
+      socket.emit('unsubscribe', room);
+    } else {
+      app.subscribed.push(room);
+      socket.emit('subscribe', room);
+    }
   }
 };
 
@@ -102,11 +138,7 @@ app.db = {
     socket.emit('create', new reqData({item:item}));
   },
   update: function(item, type) {
-    var data = new reqData({
-      item: item,
-      type: type || null
-    });
-    socket.emit('update', data);
+    socket.emit('update', new reqData({item: item}));
   },
   delete: function(item) {
     socket.emit('delete', new reqData({item:item}));
@@ -220,3 +252,83 @@ var reqData = function (options) {
     }
   }
 }
+
+
+
+
+var helpers = {
+  getObjFromId: function (collectionName, array) {
+    var collection = app[collectionName];
+    var objects = [];
+    console.log(collectionName);
+    console.log(collection);
+    for (var idIndex = 0; idIndex < array.length; idIndex++) {
+      for (var objIndex = 0; objIndex < collection.length; objIndex++) {
+        if (array[idIndex] === collection[objIndex]) {
+          objects.push(collection[objIndex]);
+        }
+      }
+    }
+    return objects;
+  },
+  getSubsToChange: function (type, subscribed, userCollection) {
+    var subsInGroup = [];
+    for (var i = 0; i < subscribed.length; i++) {
+      var group = subscribed[i].split(':')[0];
+      var id =  subscribed[i].split(':')[1];
+      if (group === type) {
+        subsInGroup.push(id);
+      }
+    }
+    var filter1 = subsInGroup.filter(function (id) {
+      var exists = false
+      for (var idIndex = 0; idIndex < userCollection.length; idIndex++) {
+        if (id === userCollection[idIndex]) {
+          exists = true;
+        }
+      }
+      return !exists;
+    });
+    var filter2 = [];
+    if (userCollection !== undefined) {
+      filter2 = userCollection.filter(function (id) {
+        var exists = false
+        for (var idIndex = 0; idIndex < subsInGroup.length; idIndex++) {
+          if (id === subsInGroup[idIndex]) {
+            exists = true;
+          }
+        }
+        return !exists;
+      });  
+    }
+    return filter1.concat(filter2);
+  }
+}
+
+var scURLs = [
+  'https://soundcloud.com/bbsvory/grindin-freestyle',
+  'https://soundcloud.com/whyjaemusic/danny-glover-remix',
+  'https://soundcloud.com/blaxx_luxaa/partynextdoor-ferina-full-ep',
+  'https://soundcloud.com/ramel-ralphy-henry/partynextdoor-silhouette',
+  'https://soundcloud.com/majorlazer/major-lazer-dj-snake-lean-on-feat-mo',
+  'https://soundcloud.com/nosleepmusic/kehlani-ft-lexii-alijai-jealous-no-sleep-remix',
+  'https://soundcloud.com/ambreperkins/kehlani-x-ambre-preach-prod-erick-bardales',
+  'https://soundcloud.com/kehlanimusic/kehlani-the-way-feat-chance-the-rapper',
+  'https://soundcloud.com/jgrammbeats/the-need-to-know-feat-sza',
+  'https://soundcloud.com/etiennne-1/can-i-drake-ft-beyonce',
+  'https://soundcloud.com/hhc-break-big/neyo-she-knows-ft-juicy-j-cdq',
+  'https://soundcloud.com/hi-jackson/throw-some-mo-hi-w-jackson-x-rae-sremmurd-x-nicki-minaj-x-young-thug-final',
+  'https://soundcloud.com/ericbellingermusic/eric-bellinger-r-b-singer',
+  'https://soundcloud.com/r-b-my-first-big-love/pleasure-p-sex-mechanic-2014'
+]
+
+var downloadURLs = function (urls) {
+  var song = new Models.song();
+  song.from = 'soundcloud';
+  urls.forEach(function(url) {
+    song.location.origin = url;
+    app.player.downloadToServer(song);
+  });
+}
+
+
