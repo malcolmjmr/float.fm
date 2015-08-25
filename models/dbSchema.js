@@ -4,14 +4,15 @@ var bcrypt   = require('bcrypt-nodejs');
 
 // define the schema for our user model
 var userSchema = mongoose.Schema({
-    firstName       : String,
-    lastName        : String,
+    firstName        : String,
+    lastName         : String,
     age              : String,
-    groups           : Array,
+    hashtags         : Array,
     songs            : Array,
     playlists        : Array,
-    stations         : Array,
-    txnHistory      : Array, 
+    groups           : Array,
+    friends          : Array,
+    txnHistory       : Array, 
     local            : {
         email        : String,
         password     : String,
@@ -34,8 +35,15 @@ var userSchema = mongoose.Schema({
         email        : String,
         name         : String
     },
-    active           : Boolean
-
+    status           : Boolean,
+    type             : String,
+    settings         : {
+      viewableByFriends: Array,
+      viewableByPublic: Array,
+      defaultHastags: Array,
+      defaultStaions: Array
+    }, 
+    votes: Array
 });
 
 // methods ======================
@@ -55,54 +63,49 @@ var songSchema = mongoose.Schema({
   album   : String,
   genre   : String,
   location  : {
-      local: String,
-      hosted: String
+      origin: String,
+      hosted: String,
+      local: String
   },
   coverLocation : {
+    origin: String,
     local: String,
     hosted: String
   },
   hashtags: Array,
-  upvotes : Array,
-  downvotes: Array,
+  votes: Array,
   stations : Array,
   playCount: Array,
   playedBy: Array,
-  type: String,
-  from: String,
+  type: String
 
 });
 
-var groupSchema = mongoose.Schema({
+var hashtagSchema = mongoose.Schema({
   name        : String,
   createdBy   : String,
   createdOn   : String,
-  admins      : Array,
-  members     : Array,
-  following   : Array,
+  followers   : Array,
   playlists   : Array,
   stations    : Array,
   hashtags    : Array,
   txnHistory  : Array,
-  upvotes     : Array,
-  downvotes   : Array,
-  type        : String,
-  active      : Boolean
+  votes       : Array,
+  type        : String
 });
 
-var stationSchema = mongoose.Schema({
+var groupSchema = mongoose.Schema({
   name          : String,
   createdBy     : String,
   createdOn     : String,
   admins        : Array,
   members       : Array,
-  following     : Array,
+  followers     : Array,
   songs         : Array,
   hashtags      : Array,
-  upvotes       : Array,
-  downvotes     : Array,
+  votes         : Array,
   type          : String,
-  status        : Boolean
+  status        : Boolean,
 });
 
 var sessionSchema = mongoose.Schema({
@@ -116,6 +119,6 @@ module.exports = {
   user    : mongoose.model('user', userSchema),
   group   : mongoose.model('group', groupSchema),
   song    : mongoose.model('song', songSchema),
-  station : mongoose.model('station', stationSchema),
+  hashtag : mongoose.model('hashtag', hashtagSchema),
   session : mongoose.model('session', sessionSchema)
 };

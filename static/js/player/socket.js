@@ -2,6 +2,8 @@ var socket = io.connect('http://'+window.location.host);
 
 socket.on('connect', function(){
   console.log("Socket connected");
+  app.initiate();
+  socket.emit('ready');
 });
 
 socket.on('song_sent', function(library) {
@@ -69,21 +71,80 @@ socket.on('user_data_sent', function(response) {
   }
 });
 
-socket.on('new_item_details', function(item) {
-  console.log('new_item_details');
+socket.on('db_item_details', function(item) {
+  console.log(item);
+  var room = item.type+':'+item._id;
+  var alreadySubscribed = -1 !== app.subscribed.indexOf(room);
+
+  if (!alreadySubscribed) {
+    socket.emit('subscribe', room);
+    app.subscribed.push(room);
+  }
+
   var collection = item.type+'s';
-  for (var itemIndex = 0; itemIndex < app.user[collection].length; itemIndex++) {
-    if (app.user[collection][itemIndex]._id) {
-      if (app.user[collection][itemIndex]._id === item._id) {
-        console.log('adding_new_details');
-        app.user[collection][itemIndex] = item;
-      }
+  if (collection === 'users') {
+    if (app.user === undefined) {
+      app.user = item; 
+      app.db.getUserData();
     } else {
-      if (app.user[collection][itemIndex] === item._id) {
-        app.user[collection][itemIndex] = item;
+      app.user = item;
+    }
+  } else {
+    var itemExists = false;
+
+    for (var itemIndex = 0; itemIndex < app[collection].length; itemIndex++) {
+      if (app[collection][itemIndex]._id) {
+        if (app[collection][itemIndex]._id === item._id) {
+          itemExists = true;
+          app[collection][itemIndex] = item;
+        }
+      } else {
+        if (app[collection][itemIndex] === item._id) {
+          itemExists = true;
+          app[collection][itemIndex] = item;
+        }
       }
+    }
+    if (!itemExists) {
+      app[collection].push(item);
+    }
+  }
+  
+})
+
+socket.on('db_collection', function (collection) {
+  console.log(collection);
+  var collectionName = collection.name+'s';
+  app[collectionName] = collection.items;
+})
+
+socket.on('error', function (error) {
+  console.log(error);
+});
+
+socket.on('message', function(data) {
+  var roomType = data.room.split(':')[0];
+  var itemId = data.room.split(':')[1];
+  var name = null;
+  for (var i = 0; i < app.groups.length; i++) {
+    if (app.groups[i]._id === itemId) {
+
+      switch(roomType) {
+        case 'song': 
+          name = app.groups[i].title;
+          break;
+        case 'hashtag':
+          name = app.groups[i].name;
+          break;
+        case 'group':
+          name = app.groups[i].name;
+          break;
+        case 'user':
+          name = app.groups[i].local.email;
+          break;
+        default:
+      }
+      console.log(name+'| '+data.from+': '+data.message);
     }
   }
 })
-
-

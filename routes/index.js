@@ -12,7 +12,6 @@ exports.createRoutes = function(app_ref) {
   app.get('/welcome', welcomePage) 
   app.post('/login', localLogin);
   app.post('/signup', localSignup);
-  app.post('/db', getItemFromDB);
   app.get('/auth/facebook', passport.authenticate('facebook', { scope : 'email' }));
   app.get('/auth/facebook/callback', fbCallback(passport));
   app.get('/auth/google', passport.authenticate('google', { scope : ['profile', 'email'] }));
@@ -22,74 +21,19 @@ exports.createRoutes = function(app_ref) {
   app.post('/logout', logout);
   app.get('/', isLoggedIn, mainPage);
   app.get('/sendsong', f.sendSong);
-  //app.get('cover:id', f.sendCover);
+  //app.get('cover', f.sendCover);
   // app routes 
   app.io.route('ready', f.ready);
   app.io.route('create', f.create);
   app.io.route('update', f.update);
   app.io.route('delete', f.delete);
-  app.io.route('getUser', f.getUser);
   app.io.route('get_user_data', f.getUserData);
+  app.io.route('get_item', f.getItem);
+  app.io.route('get_collection', f.getCollection);
+  app.io.route('subscribe', f.subscribe);
+  app.io.route('unsubscribe', f.unsubscribe);
+  app.io.route('broadcast', f.broadcast);
   app.io.route('download', f.download);
-
-  /*app.io.route('song', {
-    create: f.song.create
-    update: f.song.update
-  });
-  app.io.route('group', {
-    create: f.group.create,
-    update: f.group.update,
-    delete: f.group.delete,
-    follow: f.group.follow,
-    add_item: f.station.addItem,
-    remove_item: f.station.removeItem
-  });
-  app.io.route('station', {
-    create: f.station.create,
-    update: f.station.update,
-    delete: f.station.delete,
-    follow: f.station.follow,
-    add_item: f.station.addItem,
-    remove_item: f.station.removeItem
-  });
-  app.io.route('playlist', {
-    create: f.playlist.create,
-    update: f.playlist.update,
-    delete: f.playlist.delete,
-    follow: f.playlist.follow,
-    add_item: f.playlist.addItem
-    remove_item: f.playlist.removeItem
-  });
-  app.io.route('user', {
-    create: createUser,
-    update: updateUser,
-    send_user: sendUser,
-    send_library: sendLibrary,
-    send_groups: sendGroups,
-    send_stations: sendSations,
-    library: {
-      add_item: addToLibrary,
-      remove_item: removeFromeLibrary
-    }
-  });
-  app.io.route('vote', {
-    up: upVote,
-    down: downVote
-  });
-
-  */
-
-  //app.io.on('send_user', sendUser);
-  //app.io.on('create_group', createGroup);
-  //app.io.on('send_group', sendGroup);
-  //app.io.on('update_group', updateGroup);
-  //app.io.on('create_station', createStation);
-  //app.io.on('send_station', sendStation);
-  //app.io.on('update_station', updateStation);
-  //app.get('/account', accountsPage);
-  //app.get('/songs/:user', getSongs);
-  //app.get('/premiers', premiersPage);
-  //app.get('/addSong', addSong);
 }
 // web pages =============================
 
@@ -114,53 +58,7 @@ function logout(req, res) {
   res.redirect('/welcome');
 }
 
-function addSong(req) {
-  var response = {
-    data: 'added ' + req.data
-  }
-  console.log(req.session);
-  req.io.emit('song_added', response);
-}
 
-function updateSong(song) {
-
-}
-
-function updateUser(user) {
-  console.log(req.session);
-}
-
-function sendUser(req, res) {
-  db.User.find({_id: req.id}, function(err, user) {
-    if (err) throw err;
-    console.log(user + err);
-    res.json(JSON.stringify(user));
-  })
-  
-}
-// functions for getting songs
-function sendSong(req, res){
-  db.Song.findOne({title: req.query.title}, function(err, song){
-    if(err || !song){
-      res.status(404).send();
-    } else {
-      console.log(song.location);
-      var root = __dirname.substring(0, __dirname.indexOf('route'));
-      
-      res.sendfile(path.join(root, encodeURIComponent(song.location)))
-  }
-  });
-}
-
-// app.io requests 
-function saveSong(req, res) {
-  song = new db.song;
-}
-
-// Look up database entries
-function getItemFromDB(req, res) {
-
-}
 // passport authentication =================
 
 function localLogin(req, res, next) {
@@ -172,8 +70,12 @@ function localLogin(req, res, next) {
       response.error = "User does not exist";
     } else {
       req.logIn(user, function(err) {
-        if (err) { throw err; }
-        response.data = user;
+        if (err) { 
+          console.log(err); 
+          response.error = err;
+        } else {
+          response.isLoggedIn = user;
+        }
       });
     }
     res.json(response);
@@ -183,11 +85,14 @@ function localLogin(req, res, next) {
 function localSignup(req, res, next) {
   var response = {};
   passport.authenticate('local-signup', function(err, user, info) {
-    if (err) { throw err; }
-    if (user) { 
-      response.data = "User already exists"; 
+    console.log(info);
+    if (err) { 
+      consoel.log(err);
+      response.error = err;
+    } else if (user) { 
+      response.error = "User already exists"; 
     } else {
-      response.data = "Registration complete";
+      response.isLoggedIn = true;
     }
     res.json(response);
   })(req, res, next);

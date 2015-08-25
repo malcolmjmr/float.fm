@@ -19,17 +19,19 @@ var Models = {
     this.genre = "Unknown";
     this.location = {
       local: "Unknown",
-      hosted: "Unknown"
+      hosted: "Unknown",
+      origin: "Unknown"
     };
     this.coverLocation = {
       local: "Unknown",
-      hosted: "Unknown"
+      hosted: "Unknown",
+      origin: "Unknown"
     };
     this.hashtags = [];
     this.upvotes =  [app.user._id];
     this.downvotes =  [];
     this.playCount =  [];
-    this.palyedBy = [];
+    this.palyedBy = [{_id: app.user._id}];
     this.type = 'song';
     this.from = "Unknown";
     if (options) {
@@ -41,19 +43,17 @@ var Models = {
   user: function(options) {
 
   },
-  group: function(options) {
+  hashtag: function(options) {
     this.name = "Unknown";
     this.createdBy = app.user._id || "Unknown";
     this.createdOn = new Date(Date.now());
-    this.admins = [app.user._id];
-    this.members = [app.user._id];
-    this.following = [app.user._id];
+    this.followers = [app.user._id];
     this.playlists = [];
     this.stations = [];
     this.hashtags = [];
     this.upvotes = [app.user._id];
     this.downvotes = [];
-    this.type = 'group';
+    this.type = 'hashtag';
     if (options) {
       for (option in options) {
         this[option] = options[option];
@@ -65,7 +65,7 @@ var Models = {
     this.createdBy = app.user._id || "Unknown";
     this.createdOn = new Date(Date.now());
     this.songs = [];
-    this.following = [app.user._id];
+    this.followers = [app.user._id];
     this.hashtags = [];
     this.upvotes = [app.user._id];
     this.downvotes = [];
@@ -76,16 +76,20 @@ var Models = {
       }
     }
   },
-  station: function(options) {
+  group: function(options) {
     this.name = "Unknown";
     this.createdBy = app.user._id || "Unknown";
     this.createdOn = new Date(Date.now());
+    this.admins = [app.user._id];
+    this.members = [app.user._id];
     this.songs = [];
-    this.following = [app.user._id];
+    this.followers = [app.user._id];
     this.hashtags = [];
-    this.upvotes = [app.user._id];
-    this.downvotes = [];
-    this.type = 'station';
+    this.votes = [{ user: app.user._id, vote: 1}];
+    this.type = 'group';
+    this.settings = {
+      viewableByPublic: ['songs','followers','hashtags','votes']
+    }
     if (options) {
       for (option in options) {
         this[option] = options[option];
