@@ -3,6 +3,7 @@
 app.player = {
   audioPlayer: new Audio(),
   state: {
+    changed: false,
     currentSongIndex: null,
     currentSongDuration: null,
     currentLocation: 0,
@@ -12,9 +13,12 @@ app.player = {
     que: [],
     queOrder: [],
     queUpdates: [],
-    playingFrom: 'que'  
+    playingFrom: 'que',
+    repeat: 'none',
+    shuffle: 'none'  
   },
-  stateChanges: [],
+  lastRequestTime: null,
+  latency: null,
   play: function(song) {
     // if song is passed through, put new song
     // infront of current song and play the new song
@@ -22,47 +26,62 @@ app.player = {
       // if the player was playing another song
       if (app.player.state.currentSongIndex && app.player.state.isPlaying) {
         app.player.state.que.splice(app.player.state.currentSongIndex, 0, song);
-        app.player.audioPlayer.pause();
       } else {
         app.player.state.que.unshift(song);
         app.player.state.currentSongIndex = 0;
       }
     }
-
-    // play from current song
-    app.player.audioPlayer.src = '/sendsong/?id='+app.player.state.que[app.player.state.currentSongIndex]._id;
-    app.player.audioPlayer.play();
-    // if the app was paused play from previous location
-    if (!app.player.state.isPlaying && app.player.state.currentSongIndex >= 0) {
-      app.player.audioPlayer.currentTime = app.player.state.currentLocation;
+    // if app has not been played yet initiate current song index
+    if (!app.player.state.currentSongIndex && app.player.state.que.length > 0) {
+      app.player.state.currentSongIndex = 0;
     }
-    app.player.stateChanges.push('play');
-  },
-  pause: function() {
-    app.player.audioPlayer.pause();
-    app.player.stateChanges.push('pause');
-  },
-  fastforward: function(num) {
-    app.player.audioPlayer.currentTime += 5*num;
-  },
-  rewind: function(num) {
-    app.player.audioPlayer.currentTime -= 5*num;
-  },
-  repeat: function() {
 
+    app.player.state.isPlaying = true;
+    app.player.state.changed = true;
   },
-  shuffle: function() {
-
+  pause: function () {
+    app.player.state.isPlaying = false;
+    app.player.state.changed = true;
   },
-  next: function() {
-    app.player.state.currentSongIndex++;
-    app.player.play();
-    app.player.stateChanges.push('next');
+  fastforward: function (rate) {
+    app.player.state.currentLocation += 5 * rate;
+    app.player.state.changed = true;
   },
-  previous: function() {
-    app.player.state.currentSongIndex--;
-    app.player.play();
-    app.player.stateChanges.push('previous');
+  rewind: function (rate) {
+    app.player.state.currentLocation -= 5 * rate;
+    app.player.state.changed = true;
+  },
+  repeat: function () {
+    if (app.player.state.repeat < 2) {
+      app.player.state.repeat++;
+    } else {
+      app.player.state.repeat = 0;
+    }   
+  },
+  shuffle: function () {
+    if (app.player.state.shuffle < 2) {
+      app.player.state.shuffle++;
+    } else {
+      app.player.state.shuffle = 0;
+    }  
+  },
+  next: function () {
+    app.player.state.currentLocation = 0;
+    if (app.player.state.currentSongIndex < app.player.state.que.length - 1){
+      app.player.state.currentSongIndex++;
+    } else {
+      app.player.state.currentSongIndex = 0;
+    }
+    app.player.state.changed = true;
+  },
+  previous: function () {
+    app.player.state.currentLocation = 0;
+    if (app.player.state.currentSongIndex > 0){
+      app.player.state.currentSongIndex--;
+    } else {
+      app.player.state.currentSongIndex = app.player.que.length - 1;
+    }
+    app.player.state.changed = true;
   },
   downloadToServer: function(song) {
     var data = {
@@ -73,24 +92,8 @@ app.player = {
   },
   initiate: function() {
     window.setInterval(function() {
-      if (app.player.stateChanges.length > 0) {
-        while (app.player.stateChanges.length > 0) {
-          var change = app.player.stateChanges.pop();
-          switch (change) {
-            case 'play': onPlay(); break;
-            case 'pause': onPause(); break;
-            case 'end': onEnd(); break;
-            case 'next': onNext(); break;
-            case 'previous': onPrevious(); break;
-            case 'update_state': onUpdateState(); break;
-            case 'update_station': onUpdateStation(); break;
-          }
-        }
-      }
-
-      // if song is close to end 
-      if (app.player.audioPlayer.duration - app.player.audioPlayer.currentTime < 5) {
-        app.player.stateChanges.push('end');
+      if (app.player.state.changed) {
+        updateState();
       }
 
       // if the player is playing 
@@ -104,46 +107,32 @@ app.player = {
   }
 };
 
-var onPlay = function () {
-  app.player.state.isPlaying = true;
-  app.player.stateChanges.push('update_state');
-}
-var onPause = function() {
-  app.player.state.isPlaying = false;
-  app.player.state.currentLocation = app.player.audioPlayer.currentTime;
-  app.player.stateChanges.push('update_state');
-}
-var onNext = function() {
-  console.log('next');
-  app.player.stateChanges.push('update_state');
-}
-var onPrevious = function (argument) {
-  console.log('previous');
-  app.player.stateChanges.push('update_state');
-}
-var onUpdateState = function () {
-  console.log('updated');
+var updateState = function () {
+  if (app.player.state.isPlaying) {
+    app.player.lastRequestTime = Date.now();
+    app.player.audioPlayer.src = '/sendsong/?id='+app.player.state.que[app.player.state.currentSongIndex]._id;
+    app.player.audioPlayer.play();
+  } else {
+    app.player.state.currentLocation = app.player.audioPlayer.currentTime;
+    app.player.audioPlayer.pause();
+  }
+  app.player.state.changed = false;
   var data = {
     room: 'user:'+app.user._id,
     event: 'update_player_state',
     state: app.player.state,
+    time: Date.now()
   }
-  socket.emit('broadcast', data);
+  socket.emit('broadcast', data); 
 }
-var onUpdateStation = function () {
-  console.log('station');
-  app.player.pause();
-  app.player.play();
-}
-var onEnd = function() {
-  app.player.state.currentSongIndex++;
-  if (app.player.state.que.length > app.player.state.currentSongIndex) {
-    app.player.audioPlayer.src = '/sendsong/?id='+app.player.state.que[app.player.state.currentSongIndex]._id;
-    app.player.audioPlayer.play();
-  } else {
-    app.player.state.currentSongIndex = null;
-    app.player.state.isPlaying = false;
-  }
-  app.player.stateChanges.push('update_state');
-}
+
+app.player.audioPlayer.addEventListener('ended', function() {
+  app.player.next();
+});
+
+app.player.audioPlayer.addEventListener('canplay', function() {
+  app.player.latency = (Date.now() - app.player.lastRequestTime) / 1000;
+  app.player.audioPlayer.currentTime = app.player.state.currentLocation + app.player.latency;
+});
+
 

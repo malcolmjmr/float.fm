@@ -13,6 +13,7 @@ socket.on('db_item_details', function(item) {
     if (app.user === undefined) {
       app.user = item;
       app.initiate();
+      app.player.initiate();
       app.toggleSubscription(app.user);
       app.db.getUserData();
       app.collectionNames.forEach(function (collectionName) {
@@ -107,8 +108,10 @@ socket.on('message', function(data) {
 })
 
 socket.on('update_player_state', function (data) {
-  console.log('update_player_state');
-  console.log(data);
-  app.player.state = data.state;
-  app.player.stateChanges.push('update_station');
+  if (data.from !== app.user._id) {
+    var latency = (Date.now() - data.time) / 1000;
+    data.state.currentLocation +=  1 + latency;
+    app.player.state = data.state;
+    app.player.state.changed = true;
+  }
 })
