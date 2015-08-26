@@ -432,17 +432,19 @@ var routes = {
     });
   },
   subscribe: function(req) {
+    var sessionUser = JSON.parse(req.session.session).passport.user;
     req.io.join(req.data);
+    console.log(sessionUser+' joined '+req.data);
   },
   unsubscribe: function(req) {
+    var sessionUser = JSON.parse(req.session.session).passport.user;
     req.io.leave(req.data);
+    console.log(sessionUser+' left '+req.data);
   },
   broadcast: function(req) {
-    var room = req.data.room;
-    var event = req.data.event;
     var sessionUser = JSON.parse(req.session.session).passport.user;
     req.data.from = sessionUser;
-    req.io.room(room).broadcast(event, req.data);
+    req.io.room(req.data.room).broadcast(req.data.event, req.data);
   },
   message: function(req) {
     console.log('got message');

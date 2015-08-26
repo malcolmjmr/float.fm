@@ -95,26 +95,39 @@ var app = {
     app.db.update(app.user);
     app.db.update(item);
   },
-  edit: function(item) {
-    app.db.update(item);
+  edit: function(item, txn) {
+    if (!txn) {
+      console.log('enter txn');
+    } else {
+      item.txnHistory.push(txn);
+      app.db.update(item);
+    }
   },
   vote: function(item, isUpVote) {
+    var userVote = {user: app.user._id, vote: isUpVote ? 1 : -1};
+    // check if vote already exists
+    var filter = item.votes.filter(function (vote) {
+      return vote.user === userVote.user
+    });
+    var voteExists = filter.length > 0;
+    // if vote exist remove
+    if (voteExists) {
+      var voteIndex = item.votes.indexOf(filter[0]);
+      item.votes.splice(voteIndex, 1);
+    }
+    // push vote to votes array
     item.votes.push({ user: app.user._id, vote: isUpvote ? 1 : -1 });
     app.db.update(app.user);
   },
   message: function(group, message) {
     var room = group.type+':'+group._id;
-    app.groups.forEach(function (appGroup) {
-      if (appGroup._id === group._id) {
-        socket.emit('broadcast', {
-          room: room, 
-          event: 'message', 
-          message: message, 
-          from: app.user._id
-        });
-        console.log(group.name+'| Me: '+message);
-      }
-    }) 
+    socket.emit('broadcast', {
+      room: room, 
+      event: 'message', 
+      message: message, 
+      from: app.user._id
+    });
+    console.log(room+'| Me: '+message);
   },
   getAll: function(type) {
     app.db.getCollection({type: type});

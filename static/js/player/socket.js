@@ -8,13 +8,12 @@ socket.on('connect', function(){
 
 
 socket.on('db_item_details', function(item) {
-  console.log(item);
-
   var collectionName = item.type+'s';
   if (collectionName === 'users') {
     if (app.user === undefined) {
       app.user = item;
       app.initiate();
+      app.toggleSubscription(app.user);
       app.db.getUserData();
       app.collectionNames.forEach(function (collectionName) {
         if (collectionName !== 'subscribed') {
@@ -80,6 +79,7 @@ socket.on('error', function (error) {
 });
 
 socket.on('message', function(data) {
+  console.log(data);
   var roomType = data.room.split(':')[0];
   var itemId = data.room.split(':')[1];
   var name = null;
@@ -104,4 +104,11 @@ socket.on('message', function(data) {
       console.log(name+'| '+data.from+': '+data.message);
     }
   }
+})
+
+socket.on('update_player_state', function (data) {
+  console.log('update_player_state');
+  console.log(data);
+  app.player.state = data.state;
+  app.player.stateChanges.push('update_station');
 })
