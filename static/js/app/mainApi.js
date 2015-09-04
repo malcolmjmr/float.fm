@@ -1,52 +1,99 @@
 var app = {
-  collectionNames: ['songs','groups','hashtags', 'friends', 'subscribed'],
+  collectionNames: ['songs','groups','hashtags', 'users', 'subscribed'],
   initiate: function() {
     app.collectionNames.forEach(function(collectionName) {
-      app[collectionName] = [];
+      app[collectionName] = {};
+    });
+    app.player.initiate();
+    app.toggleSubscription(createLabel(app.user));
+    app.db.getUserData();
+    app.collectionNames.forEach(function (collectionName) {
+      if (collectionName !== 'subscribed' 
+        && collectionName !== 'songs'
+        && collectionName !== 'users') {
+        var itemLabels = app.user[collectionName];
+        itemLabels.forEach(app.toggleSubscription);
+      }
     });
   }, 
-
-  add: function (item) {
-    var userTxn = new Models.txn({
-      operation: 'add',
-      itemId: item._id
-    });
-    var itemTxn = new Models.txn({
-      itemId: app.user._id
-    })
-    switch(item.type) {
+  // add user, hashtag, group, station
+  add: function (itemLabel) {
+    var itemType = itemLabel.split(':')[0];
+    var Update = function(collection) {
+      this.operation = 'add';
+      this.item = createLabel(app.user);
+      this.collection = collection;
+    }
+    var updates = []
+    switch(itemType) {
       case 'user': 
-        app.user.friends.push(item._id);
-        item.requests.push(app.user._id);
-        userTxn.collections.push('friends');
-        itemTxn.operation = 'request';
-        itemTxn.collections.push('requests');
+        var isFriend = app.user.friends.indexOf(itemLabel) >= 0;
+        var hasRequestedFriendship = app.user.requests.indexOf(itemLabel) >= 0;
+        // if user is not a friend make friend request
+        if (!isFriend) {
+          if (hasRequestedFriendship) {
+            var removeRequest = new Update('requests');
+            removeRequest.operation = 'remove';
+            updates.push(new Update('friends'), removeRequest);
+          } else {
+            updates.push(new Update('requests'));
+          }
+        }
         break;
       case 'song':
-        app.user.songs.push(item._id);
-        userTxn.collections.push('songs');
-        item.playedBy.push(app.user._id);
-        itemTxn.collections.push('playedBy');
-        itemTxn.operation = 'add';
-        break;
-      case 'hashtag': 
-        app.user.hashtags.push(item._id);
-        userTxn.collections.push('hashtags');
-        item.followers.push(app.user._id);
-        itemTxn.collections.push('followers');
-        itemTxn.operation = 'add';
+      case 'hashtag':
+        var hasItem = app.user[itemType+'s'].indexOf(itemLabel) >= 0;
+        // if user does not have that song or hashtag in 
+        // their collections, add it  
+        console.log(hasItem);
+        if (!hasItem) {
+          updates.push(new Update('followers'));
+        }
         break;
       case 'group': 
-        app.user.groups.push(item._id);
-        item.members.push(app.user._id);
+        var isMember = app.user.groups.indexOf(itemLabel) >= 0;
+        // if user is not in group, make request to be added
+        if (!isMember) {
+          updates.push(new Update('pendingMembers'));
+        }
         break;
     }
-    app.user.txnHistory.push(userTxn);
-    item.txnHistory.push(itemTxn);
-    app.db.update(app.user);
-    app.db.update(item);
+
+    if (updates.length > 0) {
+      app.db.update(itemLabel, updates);
+    }
     
   },
+  // add item to group or hashtag
+  addTo: function (groupLabel, itemLabel) {
+    var groupType = groupLabel.split(':')[0];
+    var group = app[groupType+'s'][groupLabel];
+    var itemType = itemLabel.split(':')[0];
+    var Update = function(collection) {
+      this.operation = 'add';
+      this.item = itemLabel;
+      this.collection = collection;
+    }
+    updates = [];
+
+    switch (itemType) {
+      case 'user':
+        var isMember = group.members.indexOf(itemLabel) >= 0;
+        if (!group.members[itemLabel]) {
+          updates.push(new Update('members'));
+        }
+        break;
+      default:
+        var hasItem = group[itemType+'s'].indexOf(itemLabel) >= 0;
+        if (!hasItem) {
+          updates.push(new Update(itemType+'s'));
+        }
+    }
+
+    if (updates.length > 0) {
+      app.db.update(groupLabel, updates)
+    }
+  }, 
   remove: function (item) {
     var itemToRemove = app.user[item.type+'s'].indexOf(item._id)
     var userTxn = new Models.txn({
@@ -95,86 +142,87 @@ var app = {
     app.db.update(app.user);
     app.db.update(item);
   },
-  edit: function(item, txn) {
-    if (!txn) {
-      console.log('enter txn');
-    } else {
-      item.txnHistory.push(txn);
-      app.db.update(item);
-    }
+  update: function(collection, updatedItem) {
+    var update = {
+      operation: 'update_collection',
+      item: updatedItem,
+      collection: collection
+    };
+
+    app.db.update(createLabel(app.user), [update]);
+
+
   },
-  vote: function(item, isUpVote) {
-    var userVote = {user: app.user._id, vote: isUpVote ? 1 : -1};
-    // check if vote already exists
-    var filter = item.votes.filter(function (vote) {
-      return vote.user === userVote.user
-    });
-    var voteExists = filter.length > 0;
-    // if vote exist remove
-    if (voteExists) {
-      var voteIndex = item.votes.indexOf(filter[0]);
-      item.votes.splice(voteIndex, 1);
+  vote: function(itemLabel, vote) {
+
+    var update = {
+      operation: 'vote',
+      collection: 'votes',
+      item: createLabel(app.user)+':'+vote
     }
-    // push vote to votes array
-    item.votes.push({ user: app.user._id, vote: isUpvote ? 1 : -1 });
-    app.db.update(app.user);
+
+    app.db.update(itemLabel, [update]);
   },
-  message: function(group, message) {
-    var room = group.type+':'+group._id;
+  message: function(room, message) {
+    var groupType = room.split(':')[0];
+    var group = app[groupType+'s'][room]
     socket.emit('broadcast', {
       room: room, 
       event: 'message', 
       message: message, 
       from: app.user._id
     });
-    console.log(room+'| Me: '+message);
+    console.log(group.name+'| Me: '+message);
   },
   getAll: function(type) {
     app.db.getCollection({type: type});
   },
-  toggleSubscription: function(item) {
-    var room = item.type+':'+item._id;
-    var itemIndex = app.subscribed.indexOf(room)
-    var isSubscribed = -1 !== itemIndex;
-    if (isSubscribed) {
-      app.subscribed.splice(itemIndex, 1);
-      socket.emit('unsubscribe', room);
+  toggleSubscription: function(itemLabel, subscribe) {
+    if (app.subscribed[itemLabel] && !subscribe) {
+      
+      app.subscribed[itemLabel] = null;
+      socket.emit('unsubscribe', itemLabel);
+
     } else {
-      app.subscribed.push(room);
-      socket.emit('subscribe', room);
-    }
-  }
+      
+      app.subscribed[itemLabel] = ['public'];
+      socket.emit('subscribe', itemLabel);
+    } 
+  }, 
+  updates: []
 };
 
 app.db = {
   create: function(item) {
-    socket.emit('create', new reqData({item:item}));
+    socket.emit('create', {item: item});
   },
-  update: function(item, type) {
-    socket.emit('update', new reqData({item: item}));
+  update: function(itemLabel, updates) {
+    socket.emit('update', {
+      itemLabel: itemLabel,
+      updates: updates
+    });
   },
-  delete: function(item) {
-    socket.emit('delete', new reqData({item:item}));
+  delete: function(itemLabel) {
+    socket.emit('delete', itemLabel);
   },
-  getItem: function(item) {
-    socket.emit('get_item', new reqData({item: item}));
+  getItem: function(itemLabel) {
+    socket.emit('get_item', itemLabel);
   },
-  getCollection: function (item) {
-    socket.emit('get_collection', new reqData({item:item}));
+  getCollection: function (collectionName) {
+    socket.emit('get_collection', collectionName);
   },
-  getUserData: function(data) {
-    if (data === undefined) {
-      data = {
-        userId: app.user._id
-      };
-    }
-    socket.emit('get_user_data', data);
+  getUserData: function() {
+    socket.emit('get_user_data');
   },
   // update entry in database
 
   // log in 
   login: {
     local: function(email, password) {
+
+      if (app.user) {
+        logout();
+      }
 
       var params = {
         email: email,
@@ -185,7 +233,7 @@ app.db = {
         if (response.error) {
           console.log(response.error);
         } else if (response.isLoggedIn) {
-          location.reload();
+          socket = new SocketConfig();
         } else {
           console.log('Unknown error while logging in');
         }
@@ -214,8 +262,9 @@ app.db = {
       $.post("/signup", params, function(response) {
         if (response.error) {
           console.log(response.error);
-        } else if (response.isLoggedIn) {
-          location.reload();
+        } else if (response.isSignedUp) {
+          var userEmail = response.user.local.email;
+          console.log('User: '+userEmail+' has been signed up. Please log in.');
         } else {
           console.log('Unknown error while signing up');
         }
@@ -242,8 +291,8 @@ app.db = {
 };
 
 
-app.chat = function(data) {
-  socket.emit('broadcast', data);
+var createLabel = function (item) {
+  return item.type+':'+item._id;
 }
 
 var items = ['song', 'station', 'group'];
@@ -255,17 +304,6 @@ function create(items, numberOfEach) {
     }
   })
 }
-
-var reqData = function (options) {
-  this.userId = app.user._id;
-  this.item = null;
-  if (options) {
-    for (option in options) {
-      this[option] = options[option];
-    }
-  }
-}
-
 
 
 
@@ -284,19 +322,21 @@ var helpers = {
     }
     return objects;
   },
-  getSubsToChange: function (type, subscribed, userCollection) {
-    var subsInGroup = [];
+  getSubsToChange: function (subscribed, userCollection) {
+    var collectionName = userCollection[0].split(':')[0]
+    var subsInCollection = [];
+
     for (var i = 0; i < subscribed.length; i++) {
-      var group = subscribed[i].split(':')[0];
-      var id =  subscribed[i].split(':')[1];
-      if (group === type) {
-        subsInGroup.push(id);
+      console.log(subscribed[i])
+      var subCollectionName = subscribed[i].split(':')[0];
+      if (subCollectionName === collectionName) {
+        subsInCollection.push(id);
       }
     }
-    var filter1 = subsInGroup.filter(function (id) {
+    var filter1 = subsInCollection.filter(function (itemLabel) {
       var exists = false
-      for (var idIndex = 0; idIndex < userCollection.length; idIndex++) {
-        if (id === userCollection[idIndex]) {
+      for (var itemIndex = 0; itemIndex < userCollection.length; itemIndex++) {
+        if (itemLabel === userCollection[itemIndex]) {
           exists = true;
         }
       }
@@ -304,10 +344,10 @@ var helpers = {
     });
     var filter2 = [];
     if (userCollection !== undefined) {
-      filter2 = userCollection.filter(function (id) {
+      filter2 = userCollection.filter(function (itemLabel) {
         var exists = false
-        for (var idIndex = 0; idIndex < subsInGroup.length; idIndex++) {
-          if (id === subsInGroup[idIndex]) {
+        for (var itemIndex = 0; itemIndex < subsInCollection.length; itemIndex++) {
+          if (id === subsInCollection[itemIndex]) {
             exists = true;
           }
         }
@@ -332,7 +372,16 @@ var scURLs = [
   'https://soundcloud.com/hhc-break-big/neyo-she-knows-ft-juicy-j-cdq',
   'https://soundcloud.com/hi-jackson/throw-some-mo-hi-w-jackson-x-rae-sremmurd-x-nicki-minaj-x-young-thug-final',
   'https://soundcloud.com/ericbellingermusic/eric-bellinger-r-b-singer',
-  'https://soundcloud.com/r-b-my-first-big-love/pleasure-p-sex-mechanic-2014'
+  'https://soundcloud.com/r-b-my-first-big-love/pleasure-p-sex-mechanic-2014',
+  'https://soundcloud.com/octobersveryown/drake-back-to-back-freestyle',
+  'https://soundcloud.com/futureisnow/future-trap-niggas-prod-by',
+  'https://soundcloud.com/travisscott-2/travis-scott-antidote',
+  'https://soundcloud.com/the-weeknd-beauty-behind-the-madness/the-game-100-ft-drake',
+  'https://soundcloud.com/partyomo/partynextdoor-kehlanis-freestyle',
+  'https://soundcloud.com/kendricktrax/young-thug-power-prod-by-london-on-the-track-digitaldrippedcom',
+  'https://soundcloud.com/chaoticphoenix13-phoenix/big-sean-i-know-feat-jhene-aiko',
+  'https://soundcloud.com/actionbronson/baby-blue-ft-chance-the-rapper',
+
 ]
 
 var downloadURLs = function (urls) {

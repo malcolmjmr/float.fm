@@ -67,9 +67,12 @@ module.exports = function(app, passport) {
                 // set the user's local credentials
                 newUser.local.email    = email;
                 newUser.local.password = newUser.generateHash(password);
+                newUser.firstName = 'Unkown';
+                newUser.lastName = 'Unkown';
                 newUser.type = 'user';
                 newUser.status = 'not verified';
-                newUser.settings.viewableByPublic = ['songs','hashtags','groups','friends','votes'];
+                newUser.settings.viewableByPublic = ['votes'];
+                newUser.settings.viewableByFriends = ['songs','hashtags','groups','friends','votes'];
 
                 // save the user
                 newUser.save(function(err) {

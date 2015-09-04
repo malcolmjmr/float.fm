@@ -1,40 +1,49 @@
+ /* reqData: function(reqType) {
+    switch (reqType) {
+      case 'create': item obj
+      required:
+        item.type 
+      case 'update': label and updates 
+      required: 
+        createLabel
+        updates = []
+      case 'get_item': label
+      required: 
+        createLabel
+      case 'get_collection': collectionName
+      required:
+        collectionName
+      case 'download': song item
+        item.from
+        item.location.origin 
+      default:
+
+    }
+  }
+*/ 
+
 var Models = {
-  reqData: function(options) {
-    this.userId = "";
-    if (app.user) {
-      this.userId = app.user._id;
-    }
-    this.item = null;
-    if (options) {
-      for (option in options) {
-        this[option] = options[option];
-      }
-    }
-  },
-  song: function(options) {
-    
+  song: function(options) {   
     this.title = "Unknown";
     this.artist = "Unknown";
     this.album = "Unknown";
     this.genre = "Unknown";
     this.location = {
-      local: "Unknown",
-      hosted: "Unknown",
-      origin: "Unknown"
+      local: null,
+      hosted: null,
+      origin: null
     };
     this.coverLocation = {
-      local: "Unknown",
-      hosted: "Unknown",
-      origin: "Unknown"
+      local: null,
+      hosted: null,
+      origin: null
     };
+    this.isPublic = true;
     this.hashtags = [];
-    this.votes = [{_id: app.user._id, vote: 1}];
-    this.txnHistory = [new Models.txn({
-      operation: 'create',
-      itemId: app.user._id
-    })];
+    this.votes = [createLabel(app.user)+':1'];
+    this.txnHistory = [];
     this.playCount =  [];
-    this.palyedBy = [{_id: app.user._id}];
+    this.palyedBy = [createLabel(app.user)+':0'];
     this.type = 'song';
     this.from = "Unknown";
     if (options) {
@@ -48,17 +57,12 @@ var Models = {
   },
   hashtag: function(options) {
     this.name = "Unknown";
-    this.createdBy = app.user._id || "Unknown";
-    this.createdOn = new Date(Date.now());
-    this.followers = [app.user._id];
+    this.followers = [createLabel(app.user)];
     this.playlists = [];
     this.stations = [];
     this.hashtags = [];
-    this.txnHistory = [new Models.txn({
-      operation: 'create',
-      itemId: app.user._id
-    })];
-    this.votes = [{_id: app.user._id, vote: 1}];
+    this.txnHistory = [];
+    this.votes = [{_id: createLabel(app.user), vote: 1}];
     this.type = 'hashtag';
     if (options) {
       for (option in options) {
@@ -68,12 +72,10 @@ var Models = {
   },
   playlist: function(options) {
     this.name = "Unknown";
-    this.createdBy = app.user._id || "Unknown";
-    this.createdOn = new Date(Date.now());
     this.songs = [];
-    this.followers = [app.user._id];
+    this.followers = [createLabel(app.user)];
     this.hashtags = [];
-    this.upvotes = [app.user._id];
+    this.upvotes = [createLabel(app.user)];
     this.downvotes = [];
     this.type = 'playlist';
     if (options) {
@@ -84,40 +86,46 @@ var Models = {
   },
   group: function(options) {
     this.name = "Unknown";
-    this.createdBy = app.user._id || "Unknown";
-    this.createdOn = new Date(Date.now());
-    this.admins = [app.user._id];
-    this.members = [app.user._id];
+    this.admins = [createLabel(app.user)];
+    this.members = [createLabel(app.user)];
+    this.pendingMembers = [];
     this.songs = [];
-    this.followers = [app.user._id];
+    this.followers = [createLabel(app.user)];
     this.hashtags = [];
-    this.votes = [{ user: app.user._id, vote: 1}];
+    this.votes = [createLabel(app.user)+':1'];
     this.type = 'group';
-    this.txnHistory = [new Models.txn({
-      operation: 'create',
-      itemId: app.user._id
-    })];
+    this.txnHistory = [];
     this.settings = {
       viewableByPublic: ['songs','followers','hashtags','votes']
-    }
+    },
+    this.isPublic = false;
     if (options) {
       for (option in options) {
         this[option] = options[option];
       }
     }    
   },
-  txn: function (options) {
-    this.operation = null;
-    this.collections = [];
-    this.itemId = null;
-    this.createdOn = new Date(Date.now());
-    this.createdBy = app.user._id;
+  station: function (options) {
+    this.name = "Unknown";
+    this.state = {
+      changed: false,
+      currentSongIndex: null,
+      currentSongDuration: null,
+      currentLocation: 0,
+      currentVolume: 100,
+      currentStationIndex: null,
+      isPlaying: false,
+      queue: [],
+      queueOrder: [],
+      queueUpdates: [],
+      repeat: 'none',
+      shuffle: 'none'  
+    };
     if (options) {
       for (option in options) {
         this[option] = options[option];
       }
     }
+
   }
 }
-
-

@@ -3,7 +3,6 @@ var db = require('./../models/dbSchema.js');
 module.exports = function(app) {
 
   app.io.use(function (socket, next) {
-
     var cookie = socket.headers.cookie;
     if (cookie) {
       var sidPrefix = 'express.sid=s%3A';
@@ -21,7 +20,7 @@ module.exports = function(app) {
               socket.session = doc;
             }
             next();
-          }
+          } 
         }    
       })
     }

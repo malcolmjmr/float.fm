@@ -1,0 +1,298 @@
+
+========================================Item (Obj) Breakdown================================
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+'|   All     |           Song            |      User      |  Hashtag/Group |   Station   |
+=========================================================================================
+ | item._id  | item.title                | item.firstName | item.name      |             | 
+ | item.type | item.artist               | item.status    | item.followers |             |
+P|           | item.genre                |                | item.voteCount |             | 
+U|           | item.album                |                | item.          |             | 
+B|           | item.location.origin      |                |                |             | 
+L|           | item.coverLocation.origin |                |                |             |
+I|           | item.hashtags             |                |                |             |
+C|           | item.playCount            |                |                |             |
+ |           | item.voteCount            |                |                |             |
+ |           | item.totalPlayTime        |                |                |             |
+ |           | item.from                 |                |                |             |
+=========================================================================================
+F| followers | item.playedBy             | item.lastName  | item.admins    | item.name   |
+R|           |                           | item.hashtags  | item.members   | item.state  |
+I|           |                           | item.playlists | item.songs     |             |
+E|           |                           | item.groups    | item.playlists |             |
+N|           |                           | item.friends   | item.hashtags  |             |
+D|           |                           | item.songs     |                |             |
+S|           |                           |                |                |             |
+=========================================================================================
+P| txnHistory| item.location             | item.settings  |                |             |  
+R| votes     | item.coverLocation        | item.requests  |                |             |
+I| createdBy | item.stations             | item.local     |                |             |
+V| createdOn |                           | item.fb/google |                |             |
+A|           |                           |                |                |             | 
+T|           |                           |                |                |             | 
+E|           |                           |                |                |             | 
+========================================================================================='
+
+======================================== DB Calls ==========================================
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+++++++++++++++++++++++++++ Signup an account with the server +++++++++++++++++++++++++++++++
+
+<= server <== signupInfo <== '/signup' <== client
+
+- client sends server signup information 
+
+
+Data:
+---------------------
+signupInfo.email
+signupInfo.password
+
+=> signup ==> response.isSignedup ==> client
+
+- if the email and password are valid then 
+  send response back to client 
+
+Data:
+---------------------
+response.isSignedup
+response.error
+
+
++++++++++++++++++++++++++++++++++++ Log in to server +++++++++++++++++++++++++++++++++++++++
+
+<= server <== loginInfo <== '/login' <== client
+
+- client sends server login information 
+
+Data:
+---------------------
+loginInfo.email
+loginInfo.password
+
+=> login ==> response.isLoggedin ==> client
+
+- if information notify client that it has 
+  authenticated by the server 
+
+Data:
+---------------------
+response.isLoggedin
+response.error
+
+++++++++++++++++++++++++++++++++++Loggin of of server ++++++++++++++++++++++++++++++++++++++
+
+<= server <== '/logout' <== client
+
+- client post to logout route 
+
+=> logout ==> response ==> client
+
+- server responsed with statust of request
+
+Data:
+---------------------
+response.isLoggedOut
+response.error
+
++++++++++++++++++++++++++++ Getting item obj from item string ++++++++++++++++++++++++++++++
+
+<= server <== item label  <== 'get_item' <== client
+
+- send item label to the server 
+
+Data:
+---------------------
+itemLabel (string)
+
+
+=> 'db_item_details' ==> item (obj) ==> client
+
+- if the item exists and the user is permissioned 
+  to see the contents of that item send to client
+
+Data:
+---------------------
+item.type
+item._id
+item....
+
++++++++++++++++++++++++++ Getting downloads from internet ++++++++++++++++++++++++++++++++++
+
+<= server <== item (obj) <== 'download' <== client 
+
+- if the client has provided requisite data,
+  save the mp3 file and jpg of cover photo to
+  the server.
+
+Data:
+---------------------
+item.from 
+item.location.origin
+
+=> 'db_item_details' ==> downloaded item ==> client
+
+- if downloaded successfully, send item back
+  to the client.
+
+Data:
+---------------------
+item.type
+item._id
+item....
+
+
++++++++++++++++++++++++++++++++ Sending mp3 file to client +++++++++++++++++++++++++++++++
+
+
+<= server <== '/sendsong?id=<item._id>' <== client
+
+- client makes get request with id in the 
+  query data 
+
+Data:
+---------------------
+req.data.query.id 
+
+=> sendsong ==> song file (mp3) ==> client
+
+- if song exists and client has permission to 
+  listen to the song send the file to client
+
+Data:
+---------------------
+audioPlayer.src
+
++++++++++++++++++++++++++++++++ Create an item in db +++++++++++++++++++++++++++++++++++++++
+
+<= server <== item (obj) <== 'create' <== client
+
+- client send item object with item details
+
+Data:
+---------------------
+item.type
+item...
+
+=> 'db_item_details' ==> created item ==> client
+
+- if the the item is saved to db send the item
+  information back to the client 
+
+Data:
+---------------------
+item._id
+item.type
+item....
+
++++++++++++++++++++++++++++++++ Update an item in db  ++++++++++++++++++++++++++++++++++++++
+
+<= sever <== update <== 'update' <== client 
+
+- client sends item string and txn updates
+
+Data:
+---------------------
+data.itemLabel (str)
+data.updates (arr)
+data.updates[i] (obj)
+data.updates[i].operation (str)
+date.updates[i].collection (str)
+data.updates[i].item (str)
+
+=> update ==> updated item ==> client
+
+- if txn is valid, apply the changes and send
+  the updated item object to the client 
+
+Data:
+---------------------
+item._id
+item.type
+item....
+
++++++++++++++++++++++++++++ Get the details for all user items  ++++++++++++++++++++++++++++
+
+<= server <== 'get_user_data' <== client
+
+- client request server to get users data 
+
+=> 'db_item_details' ==> get details for all of users items ==> client
+
+- server gets session user and iterates through all
+  items that have details in the db
+- server makes individual 'get_item' calls and sends
+  each item individually to the client
+
+Data: 
+---------------------
+item._id
+item.type
+
+++++++++++++++++++++++++ Get details for all items in a collection  ++++++++++++++++++++++++
+
+<= server <==  collectionName  <== 'get_collection' <== client
+
+- client sends name of collection to the server  
+
+Data:
+---------------------
+collectionName (str)
+
+=> 'db_collection' ==> collection ==> client
+
+- server responds with collection object that
+  contains an array of item objects 
+
+Data:
+---------------------
+collection.name
+collection.items (arr)
+
++++++++++++++++++++++++++++++ Broadcast data to other clients ++++++++++++++++++++++++++++++
+
+<= server <== data <== 'broadcast' <== client
+
+- client notifies server that it wants to broadcast
+  an event to a particular room
+
+Data:
+---------------------
+data.room
+data.event
+data.time
+
+=> data.event ==> data ==> clients 
+
+- server sends data to clients within the room
+
+
+Data:
+---------------------
+data.room
+data.event
+data.from
+data.time
+
+
+Event: 'db_item_details'
+data.item
+
+Event: 'update_player_state'
+data.stateUpdate
+
+Event: 'song_update'
+data.songUpdate
+
+Event: 'group_update'
+data.groupUpdate
+
+Event: 'hashtag_update'
+data.hashtagUpdate
+
+
+
+
+
+- 

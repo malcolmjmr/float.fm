@@ -13,6 +13,7 @@ var userSchema = mongoose.Schema({
     groups           : Array,
     friends          : Array,
     requests         : Array,
+    followers        : Array,
     txnHistory       : Array, 
     local            : {
         email        : String,
@@ -44,7 +45,8 @@ var userSchema = mongoose.Schema({
       defaultHastags: Array,
       defaultStaions: Array
     }, 
-    votes: Array
+    votes: Array,
+    isPublic: Boolean
 });
 
 // methods ======================
@@ -75,21 +77,23 @@ var songSchema = mongoose.Schema({
   },
   hashtags: Array,
   votes: Array,
-  stations : Array,
+  stations: Array,
   playCount: Array,
   playedBy: Array,
   type: String,
-  txnHistory: Array
-
+  txnHistory: Array,
+  isPublic: Boolean,
+  createdBy: String,
+  createdOn: String,
+  followers: Array,
 });
 
 var hashtagSchema = mongoose.Schema({
   name        : String,
   createdBy   : String,
-  createdOn   : String,
+  createdOn   : Date,
+  lastUpdated : Date,
   followers   : Array,
-  playlists   : Array,
-  stations    : Array,
   hashtags    : Array,
   txnHistory  : Array,
   votes       : Array,
@@ -100,16 +104,35 @@ var groupSchema = mongoose.Schema({
   name          : String,
   createdBy     : String,
   createdOn     : String,
+  lastUpdated   : String,
   admins        : Array,
   members       : Array,
+  pendingMembers: Array,
   followers     : Array,
   songs         : Array,
+  playlists     : Array,
   hashtags      : Array,
   votes         : Array,
   type          : String,
   txnHistory    : Array,
   status        : Boolean,
+  isPublic      : Boolean,
+  settings      : {
+    viewableByFriends: Array,
+    viewableByPublic: Array,
+    defaultHastags: Array,
+    defaultStaions: Array
+  }
 });
+
+var stationSchema = mongoose.Schema({
+  name: String,
+  lastUpdated: Date,
+  createdOn: Date,
+  createdBy: String,
+  state: Object,
+  isPublic: Boolean
+})
 
 var sessionSchema = mongoose.Schema({
   _id : String,
@@ -123,5 +146,6 @@ module.exports = {
   group   : mongoose.model('group', groupSchema),
   song    : mongoose.model('song', songSchema),
   hashtag : mongoose.model('hashtag', hashtagSchema),
-  session : mongoose.model('session', sessionSchema)
+  session : mongoose.model('session', sessionSchema),
+  station : mongoose.model('station', stationSchema)
 };

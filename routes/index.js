@@ -73,8 +73,8 @@ function localLogin(req, res, next) {
         if (err) { 
           console.log(err); 
           response.error = err;
-        } else {
-          response.isLoggedIn = user;
+        } else {  
+          response.isLoggedIn = true;
         }
       });
     }
@@ -90,7 +90,8 @@ function localSignup(req, res, next) {
       consoel.log(err);
       response.error = err;
     } else {
-      response.isLoggedIn = true;
+      response.isSignedUp = true;
+      response.user = user;
     }
     res.json(response);
   })(req, res, next);
